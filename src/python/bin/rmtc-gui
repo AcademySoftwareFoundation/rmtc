@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+"""
+Overall tool to invoke the other GUI objects
+"""
+
+import os
+
+from rmtc_core.gui.signalbox.widgets import SignalBox
+from rmtc_core.gui.junction.widgets import Junction
+from rmtc_core.gui.conductor.widgets import Conductor
+from rmtc_core.gui.traintrack.widgets import TrainTrack
+from rmtc_core.gui.driver.widgets import Driver
+from rmtc_core.gui.common.widgets import Toolbar, ObjectPropertyEditor, Publisher, Log
+
+from rmtc.system import Config
+from rmtc_core import System
+
+from Qt import QtWidgets, QtCore, QtGui
+
+import argparse
+parser = argparse.ArgumentParser(
+    description = "Run RMTC - populate ML artifacts, start and monitor training, run inferences and explore provenance"
+)
+parser.add_argument(
+    "--store_name",
+    help="Specify a store name",
+    default=None,
+)
+args = parser.parse_args()
+
+if __name__ == '__main__':
+
+    # setup config
+    overrides = {}
+    if args.store_name is not None:
+        overrides |= {"rmtc_store": {"name": args.store_name}}
+    rmtc_sys = System(
+        config = Config(overrides=overrides),
+    )
+    
+    # create
+    asset_path = f"{os.getenv('RMTC_RESOURCES')}/icons"        
+    app = QtWidgets.QApplication([])
+    
+    # construct the items
+    signalbox = SignalBox(rmtc_sys)
+    junction = Junction(rmtc_sys)    
+    conductor = Conductor(rmtc_sys)
+    traintrack = TrainTrack(rmtc_sys)
+    driver = Driver(rmtc_sys)
+    toolbar = Toolbar(rmtc_sys)
+    publisher = Publisher(system=rmtc_sys)    
+    properties = ObjectPropertyEditor(factory=rmtc_sys.factory)
+    log = Log(log=rmtc_sys.log)
+
+    # link events
+    junction.build_request.connect(lambda entities: rmtc_sys.build(entities))
+    junction.publish_request.connect(lambda entities: publisher.publish(entities))
+    junction.examine_request.connect(lambda entities: properties.set_obj(entities[0]))
+    signalbox.examine_request.connect(lambda entities: properties.set_obj(entities[0]))
+
+    # layout
+    ui = QtWidgets.QTabWidget()
+    ui.addTab(junction, "Ingestion")
+    ui.addTab(signalbox, "Tracing")
+
+    # dock the properties
+    property_dock = QtWidgets.QDockWidget("Properties")
+    property_dock.setWidget(properties)
+    log_dock = QtWidgets.QDockWidget("Log")
+    log_dock.setWidget(log)
+    
+    # create the main window
+    main_window = QtWidgets.QMainWindow()
+    main_window.setWindowTitle(f"RMTC - {rmtc_sys.store.name}@{rmtc_sys.store.uri}")
+    main_window.setWindowIcon(QtGui.QIcon(f"{asset_path}/rmtc.svg"))
+    pos = QtGui.QCursor.pos()
+    main_window.setGeometry(QtCore.QRect(pos.x(), pos.y(), 1280, 720))
+    main_window.addToolBar(toolbar)
+    main_window.setCentralWidget(ui)
+    main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, property_dock)
+    main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, log_dock)    
+    main_window.show()
+
+    publisher.setParent(main_window) #so centralised
+    width = main_window.width()
+    height = main_window.height()    
+    property_dock.setMinimumWidth(int(width * 0.25))
+    log_dock.setMinimumHeight(int(height * 0.15))
+    
+    app.exec_()

@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+# TODO : setup build system here to work with CMake to build possible C++
+[build-system]
+requires = ["setuptools>=61.0", "wheel", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "RMTC"
+dynamic = ["version"]
+description = "The Rongotai Model Train Club - AI artifact provenance and training system"
+requires-python = ">=3.9"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+license-files = ["LICENSE"]
+
+dependencies = [
+
+    # System
+    "packaging>=25.0.0",
+    "pyyaml>=6.0.0",
+    "numpy>=1.23.0",
+
+    # Interface
+    "flask>=3.1.0",
+    "requests>=2.28.0",     
+
+    # GUI
+    "NodeGraphQt>=0.6.0",
+    "PySide>=2.0.0",
+
+    # Track
+    "apache_age_python>=0.0.7",
+    "neo4j>=4.4.0",
+
+    # Train
+    "torch>=2.1.0",
+    "opencv-python>=4.8.0",
+    "torchvision>=0.16.0",
+    "OpenImageIO>=2.2.0",
+    "tensorboard>=2.19.0",
+
+    # Infer
+    "onnx>=1.16.0",
+    "onnxruntime>=1.19.0",
+    "onnxscript>=0.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "cmake>=3.27.0",
+    "pytest>=8.3.0",
+    "pylint>=3.3.0",
+    "black>=24.8.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src/python/lib"}
+packages = ["rmtc", "rmtc_core"]
+
+[tool.setuptools_scm]
+fallback_version = "0.0.0"

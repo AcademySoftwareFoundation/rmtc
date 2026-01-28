@@ -1,0 +1,13 @@
+#!/bin/csh
+#
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+echo "Setting RMTC environment variables"
+
+setenv RMTC_CONFIG "@CONFIG_INSTALL_DIR@"
+setenv RMTC_RESOURCES "@RESOURCES_INSTALL_DIR@"
+setenv RMTC_HOME "@INSTALL_HOME@"
+setenv RMTC_VERSION "@PROJECT_VERSION@"
+setenv PATH "@PYTHON_BIN_INSTALL_DIR@:@BIN_INSTALL_DIR@:$PATH"
+setenv PYTHONPATH "@PYTHON_LIB_INSTALL_DIR@:$PYTHONPATH"
