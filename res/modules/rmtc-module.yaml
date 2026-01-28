@@ -1,0 +1,148 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+# RMTC factory registration white list
+
+# Config metadata
+_type:            module
+_version:         1.0.0
+_name:            rmtc
+
+Model:
+  Model:
+    version:      1.0.0
+    display_name: "Tracked Model"
+    class_path:   rmtc.track.Model
+
+Dataset:
+  TrackedDataset:
+    version:      1.0.0
+    display_name: "Tracked Dataset"
+    class_path:   rmtc.track.Dataset
+  Repository:
+    version:      1.0.0
+    display_name: "Repository"
+    class_path:   rmtc.artifacts.Repository
+  Correlation:
+    version:      1.0.0
+    display_name: "Correlated Assets Dataset"
+    class_path:   rmtc.artifacts.Correlation
+  Collection:
+    version:      1.0.0
+    display_name: "Asset List Dataset"
+    class_path:   rmtc.artifacts.Collection
+  Aggregation:
+    version:      1.0.0
+    display_name: "Dataset of Datasets"
+    class_path:   rmtc.artifacts.Aggregation
+
+License:
+  License:
+    version:      1.0.0
+    display_name: "Tracked License"
+    class_path:   rmtc.track.License
+
+Tag:
+  Tag:
+    version:      1.0.0
+    display_name: "Tag"
+    class_path:   rmtc.track.Tag
+
+Resource:
+  Resource:
+    version:      1.0.0
+    display_name: "Tracked Resource"
+    class_path:   rmtc.track.Resource
+
+Process:
+  Stack:        
+    version:      1.0.0
+    class_path:   rmtc.process.ProcessStack 
+  Inverter:
+    version:      1.0.0
+    class_path:   rmtc.process.ProcessInverter
+
+Run:
+  Run:
+    version:      1.0.0
+    class_path:   rmtc.train.Run
+  TrackedRun:
+    version:      1.0.0
+    display_name: "Tracked Run"
+    class_path:   rmtc.track.Run
+    abstract:     True
+
+Solution:
+  Solution:
+    version:      1.0.0
+    display_name: "Train Solution"
+    class_path:   rmtc.train.Solution
+  TrackedSolution:
+    version:      1.0.0
+    display_name: "Tracked Solution"
+    class_path:   rmtc.track.Solution
+    abstract:     True        
+
+trainer:
+  Trainer:
+    display_name: "Tracked Trainer"  
+    version:      1.0.0
+    class_path:   rmtc.track.Trainer
+
+Inference:
+  Inference:
+    version:      1.0.0
+    class_path:   rmtc.infer.Inference
+  TrackedInference:
+    version:      1.0.0
+    display_name: "Tracked Inference"
+    class_path:   rmtc.track.Inference
+    abstract:     True    
+
+Group:
+  Group:
+    display_name: "Tracked Group"
+    version:      1.0.0
+    class_path:   rmtc.track.Group
+
+Asset:
+  TrackedAsset:
+    version:      1.0.0
+    display_name: "Tracked Asset"
+    class_path:   rmtc.track.Asset
+    abstract:     True
+  Asset:
+    version:      1.0.0
+    display_name: "Asset"
+    class_path:   rmtc.artifacts.Asset
+    abstract:     True    
+  Image:
+    version:      1.0.0
+    display_name: "Image (BHW4 RGBA)"
+    class_path:   rmtc.artifacts.Image
+  Values:
+    version:      1.0.0
+    display_name: "Float Array"
+    class_path:   rmtc.artifacts.Values
+  Labels:
+    version:      1.0.0
+    display_name: "String Array"
+    class_path:   rmtc.artifacts.Labels    
+  Mesh:
+    version:      1.0.0
+    display_name: "Mesh (VBO)"
+    class_path:   rmtc.artifacts.Mesh
+
+Weights:
+  Weights:
+    version:      1.0.0
+    display_name: "Tracked Weights"
+    class_path:   rmtc.track.Weights
+    abstract:     True    
+
+Checkpoint:
+  Checkpoint:
+    version:      1.0.0
+    display_name: "Tracked Checkpoint"
+    class_path:   rmtc.track.Checkpoint
+    abstract:     True    

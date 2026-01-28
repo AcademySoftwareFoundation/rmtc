@@ -1,0 +1,472 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+# ---------------------------------------------
+# RMTC Object & Tracking schema - December 2025
+#
+# This schema is indicative and NOT FINAL.
+#
+# For clarity, some meta properties are absent and property names changed,
+# for example, version properties are named 'ver' to prevent Python module clashing.
+# Please refer to the Python implmentation for concrete details.
+#
+# The tracking layer serves the main provenance purpose of RMTC, 
+# however it does not cover the properties required for training
+# and inference - derivative artifact objects have that information. 
+#
+# A few notes on structure:
+#
+# There are no back references, objects can own other objects
+# but those owned objects are oblivious to their owner - the graph
+# requires tracing downwards.
+#
+# You may notice repeated properties, this is to allow for ease of 
+# data access for common operations - e.g. the model a weights 
+# artifact was trained with which is crucial for inference.
+# ---------------------------------------------
+
+
+# A property has a drection represents how a property flows in our Graph Database
+# OUT - any conected reference is connected OUT from the entity
+# IN - any conected reference is connected IN from the entity
+# INOUT - it can flow both ways, default, usually a POD type
+PropertyDirection:
+    INVALID: 0
+    IN: 1
+    OUT: 2
+    INOUT: 3
+
+
+# Supported fundamental property types
+PropertyType:
+    INVALID: 0
+    BOOLEAN: 1
+    INTEGER: 2
+    NUMBER: 3
+    STRING: 4
+    DATETIME: 5
+    OBJECT: 6
+    URI: 7
+    VERSION: 8
+    TYPE: 9
+    PACKAGE: 10
+    ENUM: 11
+
+
+# Properties are reflectionable and serialisable object properties stored in a
+# data member. A property can be a single value or an array.
+#
+# Objects hold properties either as a member of the object,
+# which means they are pulled from the storage system along with the entity
+# or they are referenced - and pulled only on demand. A required property
+# is always pulled on demand from the store - this selective storage access
+# ensure we only get what is immediately necessary from the storage system
+Property:
+    name:
+        type: string
+    required:
+        type: boolean
+    direction:
+        type: PropertyDirection
+    member:
+        type: boolean
+    prop_type:
+        type: PropertyType
+
+
+# A simple package name that represents a version package required for functionality
+# e.g. linkage or importing
+Package:
+    name:
+        type: string
+    version:
+        type: Version
+
+
+# Object has the property data instance (not shown), which holds the actual 
+# property instances
+# In python, getattr & setattr are used to pass down access to these properties
+Object:
+    obj_id:
+        type: string #NOTE - this is a UUID string by default
+    properties:
+        name:
+            type: string
+            required: true
+
+
+# Datetime specifically represents ISO format strings
+# In pyton this derives from datetime.datetime
+# Local timezone is ignored - it is global UTC/Zulu datetime
+Datetime: 
+
+
+# URI provides support for scheme & host based paths and in Python
+# wraps the URL parser library
+URI:
+    scheme:
+        type: string
+    host:
+        type: string
+    user:
+        type: string
+    port:
+        type: integer
+    path:
+        type: string #NOTE for file schemes - this is a Python Path type
+    query:
+        type: string #NOTE in Python - this is a dict
+
+
+# A standardised string to represent a plugin/factory instantiable type
+# Takes the format: <module>.<category>.<name>[-<version>]
+# Types are registered in factories which allows for control over
+# Python module importing and instantation
+TypeName:
+    module:
+        type: string
+    category:
+        type: string
+    version:
+        type: Version
+
+
+# Type is a meta property type to allow classes to be referenced by
+# TypeName and instantiated with a pre-registered factory class
+# It connects to the factory to allow for instancing during storage
+# retrival
+Type:
+    type_name:
+        type: TypeName
+
+
+# Standard semantic versioning
+# In Python this inherits from packaging.version
+Version:
+    properties:
+        major:
+            type: integer
+        minor:
+            type: integer
+        patch:
+            type: integer
+
+
+# Entity represents the base entity in the system that is stored in the 
+# storage system
+# Entities can be attached to a named project for filtering and contain
+# information about whether they can be instantiated by the factory or are
+# base classes, and their creation and update datetimes
+Entity:
+    inherits: Object
+    properties:
+        abstract: 
+          type: boolean
+        created:
+            type: Datetime
+            required: true            
+        updated:
+            type: Datetime
+            required: true            
+        project:
+            type: string
+
+
+# Tag can be related to any artifact and is a simple
+# string representation at present
+Tag:
+    inherits: Entity
+
+
+# Trainer represents the training information in the system
+# specifically the abstraction of the hyper parameters
+# it is owned by the run, this can be overridden but currently
+# holds basic common values - batch size, epoch and checkpointing rate
+Trainer:
+    inherits: Entity
+    properties:
+        preprocess:
+            type: Process
+            direction: IN
+        batch_size:
+            type: integer
+        epochs:
+            type: integer
+        checkpoint_interval:
+            type: integer
+
+
+# A solution represents an ML solution to a production problem
+# It is the source entity that a DCC would call to for inference
+# to allow for weights and model indirection so a plugin can 
+# always refer the best ranking model
+Solution:
+    inherits: Entity
+    properties:
+        models:
+            type: array
+            items: Model
+            member: false
+            direction: IN
+        datasets:
+            type: array
+            items: Dataset
+            member: false
+            direction: IN
+        description:
+            type: string
+        uri:
+            type: URI
+        input_type:
+            type: Type
+        output_type:
+            type: Type
+        runs:
+            type: array
+            items: Run
+            direction: OUT
+
+
+# The various states that a Run can take during training
+RunStatus:
+  INVALID: 0
+  READY: 1
+  RUNNING: 2
+  PAUSED: 3
+  STOPPED: 4
+  FINISHED: 5
+  FAILED: 6
+
+
+# A solution run - holds the connection between the trainer, 
+# model and dataset, can be started from a checkpoint
+# and produces checkpoints at an interval and ultimately weights
+# it does not produce a model
+Run:
+    inherits: Entity
+    properties:
+        model:
+            type: Model
+            member: false
+            direction: IN
+        dataset:
+            type: Dataset
+            member: false
+            direction: IN
+        checkpoints:
+            type: array
+            items: Checkpoint
+            member: false
+            direction: IN
+        uri:
+            type: URI
+        status:
+            type: RunStatus
+        duration:
+            type: float
+        started:
+            type: Datetime
+        metric:
+            type: float
+            required: true
+        epoch:
+            type: integer
+        trainer:
+            type: Trainer
+            direction: OUT
+        result_weights:
+            type: Weights
+            direction: OUT
+        result_checkpoints:
+            type: array
+            items: Checkpoint
+            direction: OUT
+
+
+# Permissions can be related to licenses and will represent
+# the guardrails used for inference and training inherited from
+# the artifact licenses
+Permission:
+    inherits: Entity
+
+
+# A license represents rights for an artifact in the system
+# There can be multiple licenses, which should only be referenced
+# rather than members of an artifact.
+# A license can reference permissions which will ultimately control
+# access to artifacts in inference & training under certain conditions.
+# Licenses can hold an additional reference to an external DB for PII purposes
+License:
+    inherits: Entity
+    properties:
+        parties:
+            type: array
+            items: string
+        jurisdiction:
+            type: string
+        notes:
+            type: array
+            items: string
+        reference:
+            type: string
+        date:
+            type: Datetime
+        start:
+            type: Datetime
+        finish:
+            type: Datetime
+        uri:
+            type: URI
+        permissions:
+            type: array
+            items: Permission
+            member: false
+            direction: OUT
+
+
+# An inference stores the relationship between an inputs and outputs
+# and which combination of model and weights was used.
+# An inference has an optional normalised metric to give a sense of the quality of
+# the inference, this is usually inherited from the model, but can be
+# overridden by the inference itself
+Inference:
+    inherits: Entity
+    properties:
+        model:
+            type: Model
+            member: false
+            direction: IN
+        inputs:
+            type: Dataset
+            member: false
+            direction: IN
+        weights:
+            type: Weights
+            member: false
+            direction: IN
+        metric:
+            type: float
+            required: true
+        result:
+            type: Dataset
+
+
+# An artifact represents an on disk concrete URI item which has licenses.
+# This is the base class for all our key trackable items
+# Each holds a version, tags, a particular environment that needs to be loaded
+# for this artifact to be valid (TBC).
+# Artifacts also have ancestors - what it was derived from, and variants - things
+# that are essentially the same but converted - e.g. Torchscript -> ONNX, and share
+# the same provenance
+Artifact:
+    abstract: true
+    inherits: Entity
+    properties:
+        uri:
+            type: URI
+            required: true    
+        version:
+            type: Version
+            direction: IN
+            required: true
+        licenses:
+            type: array
+            items: License
+            member: false
+            direction: IN
+        tags:
+            type: array
+            items: Tag
+            member: false
+            direction: IN
+        env:
+            type: array
+            items: Package
+            direction: IN
+        ancestors:
+            type: array
+            items: Artifact
+            member: false
+            direction: IN
+        variants:
+            type: array
+            items: Artifact
+            direction: OUT
+        origin:
+            type: string
+        author:
+            type: string
+
+
+# A resource is generic artifact not managed by RMTC for example
+# a Nuke CAT file or a potential sidecar JSON file
+Resource:
+    inherits: Artifact
+
+
+# A model represents a trainable or inferrable model,
+# The type referenced is the asset type class, there is an additional
+# system (not shown) to constraint the Type to assets.
+# Models hold additional skip connects to their dataset
+Model:
+    inherits: Artifact
+    properties:
+        dataset:
+            type: Dataset
+            member: false
+            direction: IN
+        metric:
+            type: float
+            required: true
+        input_type:
+            type: Type
+            direction: IN
+        output_type:
+            type: Type
+            direction: IN
+
+
+# Checkpoints represent weights & gradient information
+# to allow for a run to pickup exactly where it left off,
+# similarily to Weights, it can reference a model
+Checkpoint:
+    inherits: Artifact
+    properties:
+        model:
+            type: Model
+            member: false
+            direction: IN
+
+
+# Weights hold the trained state as an output of the run
+# and are loaded into the model that is referenced
+Weights:
+    inherits: Artifact
+    properties:
+        model:
+            type: Model
+            member: false
+            direction: IN
+
+
+# Datasets represents ideally the most atomic element of assets
+# in the storage system (to mitigate scale). Datasets can be composed
+# of other datasets or ecplict assets
+Dataset:
+    inherits: Artifact
+    properties:
+        datasets:
+            type: array
+            items: Dataset
+            direction: IN
+        assets:
+            type: array
+            items: Asset
+            direction: IN
+
+
+# Asset represents an actual item in the asset management system
+# and is a member of the datasets. Models convert assets to tensors
+# via a process system at the artifact layer.
+Asset:
+    inherits: Artifact

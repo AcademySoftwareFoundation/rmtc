@@ -1,0 +1,170 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+# RMTC factory registration white list
+
+# Config metadata
+_type:            module
+_version:         1.0.0
+_name:            rmtc_core
+
+Model:
+  TorchModel:
+    version:      1.0.0
+    display_name: Torch Model
+    class_path:   rmtc_core.artifacts.torch.models.Torch
+
+Checkpoint:
+  TorchCheckpoint:
+    version:      1.0.0  
+    display_name: Torch Checkpoint
+    class_path:   rmtc_core.artifacts.torch.checkpoints.TorchCheckpoint
+
+Trainer:
+  TorchRegression:
+    version:      1.0.0
+    display_name: Regression
+    class_path:   rmtc_core.train.torch.trainers.TorchRegression
+
+License:
+  OSS:
+    display_name: Generic OSS License
+    version:      1.0.0
+    class_path:   rmtc_core.track.licenses.community.OSS  
+  Patent:
+    display_name: Patent License
+    version:      1.0.0
+    class_path:   rmtc_core.track.licenses.commercial.Patent  
+  Show:
+    display_name: Show
+    version:      1.0.0
+    class_path:   rmtc_core.track.licenses.commercial.Show
+  Agreement:
+    display_name: Commercial Agreement
+    version:      1.0.0
+    class_path:   rmtc_core.track.licenses.commercial.Agreement  
+
+Weights:
+  TorchWeights:
+    version:      1.0.0
+    display_name: Torch Weights
+    class_path:   rmtc_core.artifacts.torch.weights.TorchWeights
+
+Process:
+  Flatten:        
+    display_name: Contiguous Flatten
+    version:      1.0.0
+    class_path:   rmtc_core.process.tensor.structure.Flatten
+  Batch:
+    display_name: Tensor Batching
+    version:      1.0.0
+    class_path:   rmtc_core.process.tensor.structure.Batch
+  LinearToSRGB:
+    display_name: Linear to sRGB
+    version:      1.0.0
+    class_path:   rmtc_core.process.image.color.LinearToSRGB
+  LinearNormalize:
+    version:      1.0.0
+    class_path:   rmtc_core.process.image.color.LinearNormalize
+  StatsNormalize:
+    version:      1.0.0
+    class_path:   rmtc_core.process.image.color.StatsNormalize
+  MakeMonochrome:
+    display_name: Make Monochrome
+    version:      1.0.0
+    class_path:   rmtc_core.process.image.color.MakeMonochrome
+  MoveChannelsFirst:
+    display_name: Move Channels First
+    version:      1.0.0
+    class_path:   rmtc_core.process.image.channels.MoveChannelsFirst
+  Rotate:
+    display_name: Rotate image
+    version:      1.0.0
+    class_path:   rmtc_core.process.image.augment.Rotate
+  Translate:
+    display_name: Translate image
+    version:      1.0.0
+    class_path:   rmtc_core.process.image.augment.Translate
+  Scale:
+    display_name: Scale image
+    version:      1.0.0
+    class_path:   rmtc_core.process.image.augment.Scale
+  Flip:
+    display_name: Flip image about the vertical, horizontal, or both axes
+    version:      1.0.0
+    class_path:   rmtc_core.process.image.augment.Flip
+  TrimAlpha:
+    display_name: Trim Alpha Channel
+    version:      1.0.0
+    class_path:   rmtc_core.process.image.channels.TrimAlpha
+  ExtractChannel:
+    display_name: Extract Channel
+    version:      1.0.0
+    class_path:   rmtc_core.process.image.channels.ExtractChannel
+
+Dataset:
+  Folder:
+    display_name: Flat Folder Dataset
+    version:      1.0.0
+    class_path:   rmtc_core.artifacts.filesystem.datasets.Folder
+    deprecated:   True
+    message:      Replaced with Dataset with FolderIO
+  CorrelatedFolder:
+    display_name: Interleaved Folder Dataset
+    version:      1.0.0
+    class_path:   rmtc_core.artifacts.filesystem.datasets.CorrelatedFolder
+    deprecated:   True
+    message:      Replaced with Correlation dataset with FolderIO
+  MappedAssets:
+    display_name: Mapped Asset Dataset
+    version:      1.0.0
+    class_path:   rmtc_core.artifacts.structured.datasets.MappedAssets
+
+Inferer:
+  FolderInferer:
+    display_name: Folder Inferencing
+    version:      1.0.0
+    class_path:   rmtc_core.infer.filesystem.Folder  
+
+IO:
+  EXRFile:
+    display_name: EXR File
+    version:      1.0.0
+    class_path:   rmtc_core.io.oiio.image.EXR
+  JPGFile:
+    display_name: JPG File
+    version:      1.0.0
+    class_path:   rmtc_core.io.oiio.image.JPG
+  ValuesJSONFile:
+    display_name: JSON Values File
+    version:      1.0.0
+    class_path:   rmtc_core.io.filesystem.json.ValuesJSONFile
+  AssetValuesJSONFile:
+    version:      1.0.0
+    display_name: JSON Asset to Values File
+    class_path:   rmtc_core.io.filesystem.json.AssetValuesJSONFile
+  TorchCheckpointFile:
+    display_name: Torch Checkpoint PT File
+    version:      1.0.0
+    class_path:   rmtc_core.io.torch.checkpoints.TorchCheckpointFile
+  TorchWeightsFile:
+    display_name: Torch Weights PT File
+    version:      1.0.0
+    class_path:   rmtc_core.io.torch.weights.TorchWeightsFile  
+  TorchPackage:
+    display_name: Torch Package PT File
+    version:      1.0.0
+    class_path:   rmtc_core.io.torch.models.TorchPackage  
+  Torchscript:
+    display_name: Torch Script PT File
+    version:      1.0.0
+    class_path:   rmtc_core.io.torch.models.Torchscript
+  CorrelatedFolder:
+    display_name: Interleaved Asset Folder
+    version:      1.0.0
+    class_path:   rmtc_core.io.filesystem.folders.CorrelatedFolderIO
+  Folder:
+    display_name: Asset Folder
+    version:      1.0.0
+    class_path:   rmtc_core.io.filesystem.folders.FolderIO
+

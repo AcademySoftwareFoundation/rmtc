@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+# Ignore .DS_Store
+.DS_Store
+._.DS_Store
+
+# Ignore .bks files
+*.bks
+
+# Ignore .nfs files
+.nfs*
+
+# Ignore build
+build/
+install/
+CMakeFiles/
+.lock-waf*
+rmtc-setup.sh
+
+# Ignore pytest
+.pytest_cache
+
+# Ignore ML models
+*.pt
+
+# Ignore .pyc files
+*.pyc
+
+# ignore vscode
+.vscode/
+*.swp
+.build
+*/deploycmd.sh
+
+#ignore qtcreator files
+*.config
+*.creator
+*.creator.*
+*.files
+*.includes
+*.cflags
+*.cxxflags
+
+# Ignore eclipse
+.cproject
+.project
+.pydevproject
+
+# Ignore sublime files
+*.sublime-project
+*.sublime-workspace
