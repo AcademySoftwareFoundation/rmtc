@@ -12,7 +12,7 @@ dynamic = ["version"]
 description = "The Rongotai Model Train Club - AI artifact provenance and training system"
 requires-python = ">=3.9"
 readme = "README.md"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 license-files = ["LICENSE"]
 
 dependencies = [
