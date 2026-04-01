@@ -56,11 +56,13 @@ Assuming you are in your development folder, you can run the following to get go
 ```bash
 git clone https://github.com/AcademySoftwareFoundation/rmtc.git
 cd rmtc
-cmake -DCMAKE_INSTALL_PREFIX=/installation/area -B cmake/build -S .
+cmake -DCMAKE_INSTALL_PREFIX=$HOME/.local -B cmake/build -S .
 cd cmake/build
 make install
 source ./rmtc-setup.bash
 ```
+
+_Note_: You can replace `$HOME/.local` in the cmake command above with your installation directory of choice.
 
 This will clone the repo into your code folder, create build info in cmake/build, then make and install into a given path. The final shell script source sets up the envvars required to execute. 
 
