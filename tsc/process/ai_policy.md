@@ -6,7 +6,7 @@ The following document details the policies and procedures relating to responsib
  
 ## Context
  
-RMTC is a provenance project developed with the intention of helping to protect creative rights in AI VFX pipelines - as a consequence, usage of AI code generation solutions to submit code to RMTC has to be undertaken with careful consideration. Rather than banning the use of such tools, and inviting undocumented and untraced adoption; we wish to create a policy around AI generative code. The policy aims to provide a framework for provenance and tracing at the development level - a goal inline with the aims of the project.
+RMTC is a provenance project developed with the intention of helping to protect creative rights in AI VFX pipelines - as a consequence, usage of AI code generation solutions to submit code to RMTC has to be undertaken with careful consideration. Rather than banning the use of such tools, and inviting undocumented and untraced adoption; we wish to create a policy around AI generative code. The policy aims to provide a framework for provenance and tracing at the development level - a goal in line with the aims of the project.
  
 ## Principles
  
@@ -24,13 +24,13 @@ AI has been used for some time in software development, from code suggestions to
  
 - AI generated source code, documentation, binaries, or text that is then included in a PR
 - AI generated assets such as mesh, audio, video and images
-- Agentic AI that act on behalf of a user
+- Agentic AI that acts on behalf of a user
 - LLMs or other modern statistical inference systems
 - Derivatives of AI use - e.g. a generated image manipulated by hand, source code that is edited by a human
  
 ### Exclusions
  
-- Using it to query, summarise or review the code but not generate an artifact for PR
+- Using it to query, summarize or review the code but not generate an artifact for PR
 - Spell checking
 - Long standing inline code completion systems
  
@@ -38,9 +38,9 @@ AI has been used for some time in software development, from code suggestions to
  
 Regardless of how the code was created - only humans can submit PRs. Only humans can review PRs. Only humans can commit them to the repository.
 
-The intent is that a human must understand what is the submission and how it works - this precludes black box prompt only edits. There should be a trail of involkvement of a human in the creation of the submission - for excample, specifications, plans, updates to tickets or discussions on slack or similar sysytems.
+The intent is that a human must understand what is the submission and how it works - this precludes black box prompt only edits. There should be a trail of involvement of a human in the creation of the submission - for example, specifications, plans, updates to tickets or discussions on slack or similar systems.
  
-PRs generated without an identifiable human author will be closed, we reserve the right to ban accounts if repeated or egregious violation of RMTC's poilicies as determined on a case by case basis.
+PRs generated without an identifiable human author will be closed, we reserve the right to ban accounts in case of repeated or egregious violation of RMTC's policies as determined on a case by case basis.
  
 ## Disclosure
  
@@ -73,7 +73,7 @@ First time issues for the project are not to be resolved using AI - they are for
  
 ## Graduated adoption
  
-RMTC is an early stage project - it's code and community examples not yet established enough to allow for an AI to generate complementary code. Additionally, it is not clear regarding the possibility for reconstruction of license violating material for burgenoning projects which poses a specific issue for RMTC due to it's aims for responsible AI usage.
+RMTC is an early stage project - its code and community examples not yet established enough to allow for an AI to generate complementary code. Additionally, it is not clear regarding the possibility for reconstruction of license violating material for burgeoning projects which poses a specific issue for RMTC due to its aims for responsible AI usage.
  
 * Phase 0: No AI use of any kind
 * Phase 1: No generative usage - limited to discovery and review
@@ -82,15 +82,15 @@ RMTC is an early stage project - it's code and community examples not yet establ
 * Phase 4: Major bug fixes, minor features
 * Phase 5: Major features and refactoring
  
-Definitions of minor, major bugs or features is at the discretion of the TSC and considered at the PR level.
+Definitions of minor, major bugs or features are at the discretion of the TSC and considered at the PR level.
 
 Shifting from one phase to another requires a majority vote by the TSC.
 
-RMTC is currently at Phase 1 - limited use for secondary artifacts and review
+RMTC is currently at Phase 2 - AI use limited in scope to secondary artifacts, testing and documentation
  
 ## Asset Generation
  
-Asset generation of any kind ouside of text is banned - images, meshes, audio or any other kind of artistic asset. This is in direct contravention of the artist centric positioning of RMTC and is not required for the development of the platform.
+Asset generation of any kind outside of text is banned - images, meshes, audio or any other kind of artistic asset. This is in direct contravention of the artist centric positioning of RMTC and is not required for the development of the platform.
  
 ## TSC rights reserved
 
