@@ -1,9 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Contributors to the RMTC Project
 
-# TODO : remove Qt dependency here
-from Qt import QtWidgets
-
 from rmtc.pipeline import AssetManager
 
 
@@ -36,8 +33,8 @@ class FilesystemManager(AssetManager):
             results.append(artifact)
         return results
 
-    def publish_options_ui(self, entities=None):  # pylint: disable=unused-argument
-        return QtWidgets.QWidget()
+    def get_widget_class(self):
+        return None
 
     def trace_sources(self, uris):
         self.log.warning(f"Can't trace sources for {uris} in filesystem")
@@ -57,5 +54,3 @@ class FilesystemManager(AssetManager):
     def resolve_inverse(self, uris):
         return self.resolve(uris)
 
-    def get_widget_class(self):
-        return None
