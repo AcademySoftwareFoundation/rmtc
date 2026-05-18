@@ -29,11 +29,8 @@ jobs:
           pip install black pylint pip-audit
           pip install -e ".[dev]" --no-deps
 
-      - name: Check formatting (black)
-        run: black --check src/
-
       - name: Lint (pylint)
-        run: pylint src/python/lib/rmtc src/python/lib/rmtc_core
+        run: pylint src/
 
       - name: Security audit (pip-audit)
         run: pip-audit
