@@ -5,7 +5,6 @@
 Inference systems and representations.
 """
 
-
 from abc import ABC, abstractmethod
 
 import rmtc.system

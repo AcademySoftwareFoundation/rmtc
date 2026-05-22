@@ -5,7 +5,6 @@
 The SignalBox GUI classes - this will likely need to be paritioned
 """
 
-
 import os
 from abc import ABCMeta
 

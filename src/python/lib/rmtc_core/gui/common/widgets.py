@@ -17,15 +17,13 @@ class Log(QtWidgets.QWidget):
         self._content = QtWidgets.QPlainTextEdit()
         self._content.setReadOnly(True)
         self._content.setObjectName("Log")
-        self._content.setStyleSheet(
-            """
+        self._content.setStyleSheet("""
             QPlainTextEdit#Log {
                 color: #909090;
                 font-family: 'Courier New';
                 font-size: 8pt;
             }
-        """
-        )
+        """)
         scroller = QtWidgets.QScrollArea()
         scroller.setWidgetResizable(True)
         scroller.setWidget(self._content)
