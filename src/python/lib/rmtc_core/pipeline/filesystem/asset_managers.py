@@ -53,4 +53,3 @@ class FilesystemManager(AssetManager):
 
     def resolve_inverse(self, uris):
         return self.resolve(uris)
-
