@@ -475,11 +475,11 @@ class CypherConnection(Connection):
                 continue
             if prop.is_output():
                 query = f"""
-                    MATCH (a:{entity.class_category})-[r:{prop.name}]->(b) 
+                    MATCH (a:{entity.class_category})-[r:{prop.name}]->(b)
                 """
             elif prop.is_input():
                 query = f"""
-                    MATCH (a:{entity.class_category})<-[r:{prop.name}]-(b) 
+                    MATCH (a:{entity.class_category})<-[r:{prop.name}]-(b)
                 """
             query += f"""
                 WHERE a._obj_id='{entity.obj_id}'
@@ -614,7 +614,7 @@ class CypherQueries(Queries):
         # ambiguous - fully qualified relation
         if checkpoint is not None:
             query = f"""
-                MATCH (r:Run)-[:checkpoints]->(n) WHERE n._obj_id='{checkpoint.obj_id}' 
+                MATCH (r:Run)-[:checkpoints]->(n) WHERE n._obj_id='{checkpoint.obj_id}'
                 RETURN r._obj_id AS id
             """
             results = self.connection.read_query(query)
@@ -814,7 +814,7 @@ class CypherQueries(Queries):
         if name is None and entity_license is None and version is None:
             self.connection.store.log.warning(f"Requesting all {category}s")
             query = f"""
-                MATCH (n:{category}) WHERE n._store='{self.connection.store.name}' 
+                MATCH (n:{category}) WHERE n._store='{self.connection.store.name}'
                 RETURN DISTINCT n._obj_id AS id
             """
             results = self.connection.read_query(query)
@@ -848,7 +848,8 @@ class CypherQueries(Queries):
             if len(entity_obj_ids) > 0:
                 clause = f" AND n._obj_id IN {entity_obj_ids} "
             query = f"""
-                MATCH (n)-[:licenses]->(l:License) WHERE l._obj_id='{entity_license.obj_id}' {clause}
+                MATCH (n)-[:licenses]->(l:License) 
+                WHERE l._obj_id='{entity_license.obj_id}' {clause}
                 RETURN DISTINCT n._obj_id AS id
             """
             results = self.connection.read_query(query)
