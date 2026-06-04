@@ -81,13 +81,11 @@ class CypherConnection(Connection):
         ids = []
         for entity in entities:
             ids.append(entity.obj_id)
-        result = self.write_query(
-            f"""
+        result = self.write_query(f"""
             MATCH (e) WHERE e._obj_id IN {ids}
             DETACH DELETE e
             RETURN count(e) AS deleted
-        """
-        )
+        """)
         for entity in entities:
             self.store.remove_entity(entity)
         if result is not None:
@@ -140,14 +138,12 @@ class CypherConnection(Connection):
             return []
         entities = []
         for obj_id in ids:
-            results = self.read_query(
-                f"""
+            results = self.read_query(f"""
                 MATCH (e) WHERE e._obj_id='{obj_id}'
                 RETURN
                 e._type_name AS type_name,
                 e._timestamp AS timestamp
-            """
-            )
+            """)
             if len(results) == 1:
                 result = results[0]
                 type_name = TypeName(result["type_name"])

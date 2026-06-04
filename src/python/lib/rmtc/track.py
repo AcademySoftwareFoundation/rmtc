@@ -6,7 +6,6 @@ Tracking storage interface - contains all the core
 entity types that we expect to store and their properties.
 """
 
-
 import enum
 import re
 
