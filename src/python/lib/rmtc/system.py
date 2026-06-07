@@ -1083,11 +1083,16 @@ class Config(IConfig):
         # If config path is not provided, load from the environment
         if config_file is None:
             env_var_path = os.environ.get(self.CONFIG_PATH_ENV_VAR, None)
-            env_paths = env_var_path.split(":")
-            for env_path in env_paths:
-                config_file = self._find_config_file(env_path)
-                if config_file is not None:
-                    break
+            if env_var_path is not None:
+                for env_path in env_var_path.split(":"):
+                    config_file = self._find_config_file(env_path)
+                    if config_file is not None:
+                        break
+        if config_file is None:
+            raise RMTCException(
+                "Cannot find a valid RMTC config file in the current directory or from"
+                f" the {self.CONFIG_PATH_ENV_VAR} environment variable"
+            )
 
         return config_file
 
