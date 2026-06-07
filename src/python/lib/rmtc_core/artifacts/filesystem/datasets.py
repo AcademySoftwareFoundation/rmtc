@@ -2,7 +2,7 @@
 # Copyright Contributors to the RMTC Project
 
 """
-NOTE : 
+NOTE :
 These folder based datasets are for testing ONLY and
 will be removed shortly.
 

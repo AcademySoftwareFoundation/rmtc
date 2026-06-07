@@ -253,15 +253,13 @@ class Expander(QtWidgets.QWidget):
 
         self._content = QtWidgets.QFrame(parent=self)
         self._content.setObjectName("Expander")
-        self._content.setStyleSheet(
-            """
+        self._content.setStyleSheet("""
             QFrame#Expander {
                 border: 1px solid #909090;
                 border-radius: 5px;
                 padding: 5px;
             }
-        """
-        )
+        """)
         self._content.setVisible(False)
         self._content_layout = QtWidgets.QVBoxLayout(self._content)
         widget.parent = self._content

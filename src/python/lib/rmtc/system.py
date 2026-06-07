@@ -1093,6 +1093,7 @@ class Config(IConfig):
                 "Cannot find a valid RMTC config file in the current directory or from " 
                 f"the {self.CONFIG_PATH_ENV_VAR} environment variable"
             )
+            
         return config_file
 
     def _find_config_file(self, path):

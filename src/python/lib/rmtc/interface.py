@@ -7,7 +7,6 @@ for example REST, RPC or other remote calling
 architectures.
 """
 
-
 from abc import ABC, abstractmethod
 
 

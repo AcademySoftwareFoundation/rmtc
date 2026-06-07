@@ -6,7 +6,6 @@ Training classes, derivations from the tracking entities that
 are trainable.
 """
 
-
 from abc import ABC, abstractmethod
 
 import rmtc.system
