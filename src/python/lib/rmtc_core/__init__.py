@@ -4,7 +4,6 @@
 import os
 
 from rmtc_core.track.cypher.neo4j import Neo4jDatabase
-from rmtc_core.track.cypher.age import AGEDatabase
 from rmtc_core.train.torch.trackers import TensorBoard
 from rmtc_core.pipeline.filesystem.asset_managers import FilesystemManager
 from rmtc_core.pipeline.onnx.builders import ONNXModelBuilder, ONNXWeightsBuilder
@@ -90,25 +89,14 @@ class System(rmtc.System):
                 store_uri = URI(store_config["uri"])
                 store_username = store_config["username"]
                 store_password = store_config["password"]
-                if store_config["type"] == "age":
-                    store = AGEDatabase(
-                        factory=factory,
-                        name=store_name,
-                        db_name=store_config.get("db_name", "postgresDB"),
-                        uri=store_uri,
-                        mode=mode,
-                        log=log,
-                        jit=jit,
-                    )
-                else:
-                    store = Neo4jDatabase(
-                        factory=factory,
-                        name=store_name,
-                        uri=store_uri,
-                        mode=mode,
-                        log=log,
-                        jit=jit,
-                    )
+                store = Neo4jDatabase(
+                    factory=factory,
+                    name=store_name,
+                    uri=store_uri,
+                    mode=mode,
+                    log=log,
+                    jit=jit,
+                )
             else:
                 log.warning("No store config found")
 
