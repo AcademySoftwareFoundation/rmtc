@@ -1090,7 +1090,8 @@ class Config(IConfig):
                         break
         if config_file is None:
             raise RMTCException(
-                f"Cannot find a valid RMTC config file in the current directory or from the {self.CONFIG_PATH_ENV_VAR} environment variable"
+                "Cannot find a valid RMTC config file in the current directory or from " 
+                f"the {self.CONFIG_PATH_ENV_VAR} environment variable"
             )
         return config_file
 
