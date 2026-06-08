@@ -72,6 +72,12 @@ However, before running, you will need to create a config file for your age inst
 setenv RMTC_CONFIG=<config path>/<config_name>.yaml
 ```
 
+You also need to set `RMTC_MODULES` to the directory containing the module registry YAML files. The default registry is in `res/modules/` and tells the `ModuleFactory` how to resolve type names to concrete implementations:
+
+```bash
+export RMTC_MODULES=res/modules
+```
+
 To test simply call `rmtc-gui` which should bring up the ingestion, train, track & trace UI. This will be empty at first.
 
 You can also run `pytest` from the root of the project to run the unit tests.

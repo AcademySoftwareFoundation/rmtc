@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       RMTC_CONFIG: .github/rmtc-config-ci-tests.yaml
+      RMTC_MODULES: res/modules
 
     strategy:
       fail-fast: false
@@ -62,6 +63,4 @@ jobs:
       
       - name: Run tests
         run: |
-          # Ignore test_011_entities.py for now due to age store connection issues; 
-          # will be re-enabled in a future PR
-          uv run uv run pytest tests/unit/ --ignore=tests/unit/test_011_entities.py  
+          uv run uv run pytest tests/unit/ 
