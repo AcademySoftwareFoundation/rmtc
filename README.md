@@ -60,33 +60,30 @@ cmake -DCMAKE_INSTALL_PREFIX=$HOME/.local -B cmake/build -S .
 cd cmake/build
 make install
 source ./rmtc-setup.bash
+cd -
 ```
 
 _Note_: You can replace `$HOME/.local` in the cmake command above with your installation directory of choice.
 
 This will clone the repo into your code folder, create build info in cmake/build, then make and install into a given path. The final shell script source sets up the envvars required to execute. 
 
-However, before running, you will need to create a config file for your age installation derived from the [template](/res/config/rmtc_config.yaml), the RMTC_CONFIG environment variable points RMTC to the config path, which you can override as follows:
+However, before running, you will need to create a config file for your age installation derived from the [template](res/config/rmtc-config.yaml), the RMTC_CONFIG environment variable points RMTC to the config path, which you can override as follows:
 
 ```bash
-setenv RMTC_CONFIG=<config path>/<config_name>.yaml
+# csh / tcsh
+setenv RMTC_CONFIG <config path>/<config_name>.yaml
+
+# sh / bash / zsh
+export RMTC_CONFIG=<config path>/<config_name>.yaml
 ```
 
-You also need to set `RMTC_MODULES` to the directory containing the module registry YAML files. The default registry is in `res/modules/` and tells the `ModuleFactory` how to resolve type names to concrete implementations:
+You also need to set `RMTC_MODULES` environment variable to the directory containing the module registry YAML files. A common choice is `./res/modules/`.
 
-```bash
-export RMTC_MODULES=res/modules
-```
-
-The `RMTC_RESOURCES` environment variable points to the resource directory, commonly used for test fixtures: 
-
-```bash
-export RMTC_RESOURCES=res
-```
+The environment variable `RMTC_RESOURCES` points to the resource directory, commonly used for test fixtures. A common choice is `./res`
 
 To test simply call `rmtc-gui` which should bring up the ingestion, train, track & trace UI. This will be empty at first.
 
-You can also run `pytest` from the root of the project to run the unit tests.
+You can also run `pytest` from the root of the project to run the unit tests and integration tests.
 
 ## Dependencies
 See [pyproject](pyproject.toml) for a list of dependencies in machine readible format - these are not configured, found or installed as part of the build currently.
