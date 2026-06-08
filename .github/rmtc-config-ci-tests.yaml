@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+# RMTC system config
+# Anything added in here will appear in the config dict
+
+# Config metadata
+_type:          config
+_version:       1.0.0
+_name:          rmtc
+
+# Internal system state
+rmtc_system:
+  jit_sync:     true    
+  mode:         DEVELOPMENT
+
+# Change these credentials
+rmtc_store:
+  type:         age
+  username:     postgres
+  password:     postgres
+  uri:          postgres://localhost:5432
+  name:         postgresDB
+
+  # Show/project mapping (store name: project code(s))
+  store_map:
+    rmtc_example:
+      - show
+
+rmtc_tracker:
+  uri:          ./rmtc_tracker_storage
+
+rmtc_log:
+  type_name:    logger
+  level:        DEBUG
