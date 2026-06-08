@@ -78,6 +78,12 @@ You also need to set `RMTC_MODULES` to the directory containing the module regis
 export RMTC_MODULES=res/modules
 ```
 
+The `RMTC_RESOURCES` environment variable points to the resource directory, commonly used for test fixtures: 
+
+```bash
+export RMTC_RESOURCES=res
+```
+
 To test simply call `rmtc-gui` which should bring up the ingestion, train, track & trace UI. This will be empty at first.
 
 You can also run `pytest` from the root of the project to run the unit tests.
