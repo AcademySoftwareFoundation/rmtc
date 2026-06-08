@@ -1,20 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Contributors to the RMTC Project
 
-# RMTC system config
-# Anything added in here will appear in the config dict
+# RMTC system config - used exclusively by CI test workflows (ci_tests.yaml, ci_code_quality.yaml)
 
 # Config metadata
 _type:          config
 _version:       1.0.0
 _name:          rmtc
 
-# Internal system state
 rmtc_system:
-  jit_sync:     true    
+  jit_sync:     true
   mode:         DEVELOPMENT
 
-# Change these credentials
+# Credentials and URI match the Apache AGE service container defined in the CI workflow files.
+# Do not change these without updating the corresponding workflow service definitions.
 rmtc_store:
   type:         age
   username:     postgres
@@ -28,8 +27,8 @@ rmtc_store:
       - show
 
 rmtc_tracker:
-  uri:          ./rmtc_tracker_storage
+  uri:          ./rmtc_tracker_storage  # write TensorBoard logs to a local temp dir on the CI runner
 
 rmtc_log:
   type_name:    logger
-  level:        DEBUG
+  level:        DEBUG                   # verbose logging to aid CI failure diagnosis
