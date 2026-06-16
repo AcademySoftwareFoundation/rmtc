@@ -30,6 +30,7 @@ dependencies = [
     "PySide2>=2.0.0; python_version < '3.12'",
     "PySide6>=6.5.0; python_version >= '3.12'",
     "NodeGraphQt>=0.6.0",
+    # GUI
 
     # Track
     "apache_age_python>=0.0.7",
@@ -54,6 +55,7 @@ dev = [
     "pytest>=8.3.0",
     "pylint>=3.3.0",
     "black>=24.8.0",
+    "pip-audit>=2.10.0",
 ]
 
 [tool.setuptools]

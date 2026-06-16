@@ -50,3 +50,6 @@ rmtc-setup.sh
 # Ignore sublime files
 *.sublime-project
 *.sublime-workspace
+
+# Ignore .venv files
+.venv/

@@ -9,7 +9,6 @@ we don't permit multiple inheritance unless it's a IXxxx class
 These classes don't hold member variables and don't have an __init__ or __del__
 """
 
-
 from abc import ABC, abstractmethod
 import enum
 

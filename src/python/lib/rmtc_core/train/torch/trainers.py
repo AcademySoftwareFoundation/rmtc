@@ -18,7 +18,6 @@ from rmtc.system import RMTCException, Context
 from rmtc.containers import ITable
 from rmtc.artifacts import ModelType
 
-
 MAX_SIGNED_32_INT = (1 << 31) - 1
 
 
