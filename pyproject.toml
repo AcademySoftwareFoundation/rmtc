@@ -45,7 +45,8 @@ dependencies = [
 
     # Infer
     "onnx>=1.16.0",
-    "onnxruntime>=1.19.0",
+    "onnxruntime<=1.18.0; python_version <= '3.9'",
+    "onnxruntime>=1.19.0; python_version >= '3.10'",
     "onnxscript>=0.2.0",
 ]
 
@@ -55,7 +56,8 @@ dev = [
     "pytest>=8.3.0",
     "pylint>=3.3.0",
     "black>=24.8.0",
-    "pip-audit>=2.10.0",
+    "pip-audit>=2.9.0; python_version == '3.9'",
+    "pip-audit>=2.10.0; python_version >= '3.10'",
 ]
 
 [tool.setuptools]
