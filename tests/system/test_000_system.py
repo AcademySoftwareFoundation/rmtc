@@ -57,7 +57,7 @@ class TestSystem(AbstractRMTCTest):
         uri = URI()
         uri.scheme = "file"
         uri.host = "localhost"
-        self.assertTrue(isinstance(uri.path, pathlib.Path))        
+        self.assertTrue(isinstance(uri.path, pathlib.Path))
         uri.path /= "test.exr"
         self.assertEqual(str(uri), "file://localhost/test.exr")
         file_uri = FileURI(path=uri.path)

@@ -3,10 +3,7 @@
 
 import os
 
-from rmtc.core.ops.train.local.schedulers import LocalTrainScheduler
-from rmtc.core.ops.infer.local.schedulers import LocalInferScheduler
-from rmtc.core.ops.infer.simple.inferers import BatchedInferer
-
+from rmtc.interface import Client
 from rmtc.track import Tracking
 from rmtc.ops import Operations
 from rmtc.system import (
@@ -21,10 +18,12 @@ from rmtc.system import (
     TypeName,
     RMTCException,
 )
+from rmtc.system.objects import Object
 from rmtc.ops.pipeline import Pipeline
+from rmtc.ops.scheduling import Scheduler
 
 
-class System:
+class System(Client):
     """
     RMTC Core system implementation with AGE database and TensorBoard integration.
 
@@ -97,7 +96,6 @@ class System:
             credentials = (os.getenv("RMTC_USER"), os.getenv("RMTC_PW"))
         if credentials[0] is None or credentials[1] is None:
             raise RMTCException("No credentials")
-        log.debug(f"Using credentials {credentials}")
 
         # JIT sync
         if jit is None and config["rmtc_jit"]:
@@ -158,7 +156,7 @@ class System:
             readerwriter = self._construct(
                 config["rmtc_readerwriter"],
                 log=log,
-                env=env_manager,
+                env_manager=env_manager,
                 publisher=publisher,
             )
 
@@ -228,6 +226,11 @@ class System:
             pipelines=pipelines,
             env_manager=env_manager,
             log=log,
+        )
+
+        # Install a process-wide namer for naming convention overrides on all objects
+        Object.set_namer(
+            asset_manager.default_name if asset_manager is not None else None
         )
 
         # Startup
@@ -315,11 +318,11 @@ class System:
     def clear(self):
         return self._track.clear()
 
-    def pull(self, entities=None):
-        return self._track.pull(entities)
+    def pull(self, entities=None, force=False):
+        return self._track.pull(entities, force=force)
 
-    def push(self, entities=None):
-        return self._track.push(entities)
+    def push(self, entities=None, force=False):
+        return self._track.push(entities, force=force)
 
     def delete_all(self, store_name=None):
         return self._track.delete_all(store_name=store_name)
@@ -639,33 +642,44 @@ class System:
 
     # operations
 
+    def create_scheduler(self, object_type=None, **kwargs):
+        if not issubclass(object_type, Scheduler):
+            raise RMTCException(f"Subclass {object_type} in create is invalid")
+        return object_type(**kwargs, rmtc_system=self)
+
     def build(self, artifacts, pipeline_name):
         return self._ops.build(artifacts, pipeline_name)
 
     def infer(
         self,
         inputs,
-        solution=None,
-        inferer=None,
+        solution,
+        inferer,
+        scheduler,
         model=None,
         outputs=None,
         session=None,
-        scheduler=None,
         weights=None,
     ):
-        # create a straight forward inferer if not specified
-        inferer = inferer or BatchedInferer()
+        # ensure scehduler is this
+        if scheduler.rmtc_system is not self:
+            raise RMTCException("Mismatched system for scheduler")
 
-        # use local if empty
-        scheduler = scheduler or LocalInferScheduler(rmtc_system=self)
+        # HACK: backward compat
+        if isinstance(inputs, list):
+            inputs = inputs[0]
+            self.log.warning("Taking first element of inputs for infer")
+        if isinstance(outputs, list):
+            outputs = outputs[0]
+            self.log.warning("Taking first element of outputs for infer")
 
         # run inference
         inference = self._ops.infer(
             solution=solution,
             inferer=inferer,
             model=model,
-            inputs=inputs if isinstance(inputs, list) else [inputs],
-            outputs=outputs if isinstance(outputs, list) else [outputs],
+            inputs=inputs,
+            outputs=outputs,
             scheduler=scheduler,
             weights=weights,
         )
@@ -685,15 +699,19 @@ class System:
         trainer,
         model,
         dataset,
-        scheduler=None,
+        scheduler,
         checkpoint=None,
     ):
+        # ensure scehduler is this
+        if scheduler.rmtc_system is not self:
+            raise RMTCException("Mismatched system for scheduler")
+
+        # HACK: backward compat
+        if isinstance(dataset, list):
+            dataset = dataset[0]
+            self.log.warning("Taking first element of dataset for train")
+
         # use local if empty
-        if scheduler is None:
-            self.log.warning("No train scheduler specified - using local")
-            scheduler = LocalTrainScheduler(
-                rmtc_system=self,
-            )
         run = self._ops.train(
             solution=solution,
             trainer=trainer,
@@ -730,6 +748,9 @@ class System:
         return self._ops.asset_manager.manage_versions_with_publisher(
             use_for_versioning
         )
+
+    def default_name(self, entity):
+        return self._ops.asset_manager.default_name(entity)
 
     def purge(self, solution, category):
         return self._ops.purge(solution, category)

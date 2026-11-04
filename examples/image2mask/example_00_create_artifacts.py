@@ -121,6 +121,7 @@ model               = rmtc_sys.create_model(
         processors = [
             process.ProcessStack(
                 stack=[
+                    transform_processors.Resize(width=776, height=776),
                     channel_processors.ExtractChannel(),
                     channel_processors.MoveChannelsFirst(), 
                 ]

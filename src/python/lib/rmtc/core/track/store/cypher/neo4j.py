@@ -40,12 +40,14 @@ class Neo4jConnection(CypherConnection):
         raise NotImplementedError()
 
     def read_query(self, query, **kwargs):
+
+        # Set notification threshold to severe errors only
         self.store.log.debug(f"Query: {query}")
         self.store.log.debug(f"Kwargs: {kwargs}")
         result_string = "[]"
         if self._connection is not None:
-            with self._connection.session() as session:
-                result_string = session.read_transaction(
+            with self._connection.session(notifications_min_severity="OFF") as session:
+                result_string = session.execute_read(
                     _execute_neo4j_query,
                     query,
                     **kwargs,
@@ -59,8 +61,8 @@ class Neo4jConnection(CypherConnection):
         self.store.log.debug(f"Kwargs: {kwargs}")
         result_string = "[]"
         if self._connection is not None:
-            with self._connection.session() as session:
-                result_string = session.write_transaction(
+            with self._connection.session(notifications_min_severity="OFF") as session:
+                result_string = session.execute_write(
                     _execute_neo4j_query,
                     query,
                     **kwargs,
@@ -110,15 +112,12 @@ class Neo4jDatabase(Store):
         )
         try:
             neo4j_connection.verify_connectivity()
-            return Neo4jConnection(
-                store=self,
-                neo4j_connection=neo4j_connection,
-            )
         except Exception as e:  # pylint: disable=broad-exception-caught
+            neo4j_connection.close()
             raise RMTCException(
                 f"Cannot verify connection to: '{self.uri}'\n{e}"
             ) from e
-        finally:
-            neo4j_connection.close()
-            neo4j_connection = None
-        return None
+        return Neo4jConnection(
+            store=self,
+            neo4j_connection=neo4j_connection,
+        )

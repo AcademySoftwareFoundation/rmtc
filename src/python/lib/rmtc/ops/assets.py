@@ -197,6 +197,14 @@ class Labels(Asset, Pod):
         return (((0,), DataType.LABEL),)
 
 
+class Text(Labels):
+    """
+    Text is just a block of labels
+    """
+
+    pass
+
+
 class Image(Asset):
 
     # TODO: this should WHC - to conform to standard image buffer shapes
@@ -274,6 +282,89 @@ class Image(Asset):
     def structure(self):
         # single pixel RGBA WHC image
         return (((0, 0, 4), DataType.FLOAT32),)
+
+
+class Images(Asset):
+
+    # TODO: this should WHC - to conform to standard image buffer shapes
+
+    """
+    Image asset representing RGBA tensor data.
+
+    Images are stored as RGBA tensors with shape (H,W,4) containing 32-bit
+    floating point values. This class provides specialized functionality for
+    image data including dimension access methods and inherits all persistence
+    and tensor management capabilities from the Asset base class.
+
+    Why HWC? Because this is likely mappable to memory for performance
+    outside a Python context and aligns with OpenEXR
+
+    The tensor data represents image pixels in RGBA format where:
+    - N (frames): Number of frames
+    - H (height): Number of pixel rows
+    - W (width): Number of pixel columns
+    - 4 channels: Red, Green, Blue, Alpha values
+    - Values are typically 32-bit floating point in range [0.0, 1.0]
+    """
+
+    @property
+    def channels(self):
+        """Get the channel count - generally 4 for RGBA"""
+        return self.tensors[0].shape[3]
+
+    @property
+    def width(self):
+        """Get the width of the image in pixels."""
+        return self.tensors[0].shape[2]
+
+    @property
+    def height(self):
+        """Get the height of the image in pixels."""
+        return self.tensors[0].shape[1]
+
+    @property
+    def length(self):
+        """Get the height of the image in pixels."""
+        return self.tensors[0].shape[0]
+
+    def structure(self):
+        # single pixel RGBA WHC images
+        return (((0, 0, 0, 4), DataType.FLOAT32),)
+
+
+class Video(Images):
+    """
+    Video is a set of images with a framerate
+    """
+
+    def __init__(
+        self,
+        name=None,
+        context=None,
+        uri=URI(),
+        io=None,
+        licenses=None,
+        dependencies=None,
+        colorspace=None,
+        data_type=None,
+        layer_name=None,
+        tensors=None,
+        frame_rate=None,
+    ):
+        """Initialize the Image asset."""
+        super(Video, self).__init__(
+            name=name,
+            context=context,
+            uri=uri,
+            io=io,
+            licenses=licenses,
+            dependencies=dependencies,
+            tensors=tensors,
+            colorspace=colorspace,
+            layer_name=layer_name,
+            data_type=data_type,
+        )
+        self.add_property("frame_rate", float, frame_rate)
 
 
 class Mesh(Asset):
@@ -399,11 +490,6 @@ class Camera(Asset):
             tensors=tensors,
         )
 
-    @classmethod
-    def category(cls):
-        """Get the entity type name."""
-        return "Camera"
-
     @property
     def extrinsics(self):
         return self.tensors[0]
@@ -523,11 +609,6 @@ class Skeleton(Asset):
             tensors=tensors,
         )
 
-    @classmethod
-    def category(cls):
-        """Get the entity type name."""
-        return "Skeleton"
-
     def structure(self):
         return (
             ((0, 4, 4), DataType.FLOAT32),
@@ -566,16 +647,70 @@ class Pose(Asset):
         )
         self.add_property("skeleton", Skeleton, skeleton, member=False, direction=IN)
 
-    @classmethod
-    def category(cls):
-        """Get the entity type name."""
-        return "Pose"
-
     def __len__(self):
         return self.tensors[0].shape[0]
 
     def structure(self):
         return ((0, 4, 4), DataType.FLOAT32)
+
+
+class Poses(Asset):
+
+    def __init__(
+        self,
+        name=None,
+        context=None,
+        uri=URI(),
+        io=None,
+        licenses=None,
+        skeleton=None,
+        tensors=None,
+    ):
+        """Initialize the Values asset."""
+        super(Poses, self).__init__(
+            uri=uri,
+            name=name,
+            context=context,
+            io=io,
+            licenses=licenses,
+            tensors=tensors,
+            skeleton=skeleton,
+        )
+
+    def __len__(self):
+        return self.tensors[0].shape[0]
+
+    def structure(self):
+        return ((0, 0, 4, 4), DataType.FLOAT32)
+
+
+class Animation(Poses):
+    """
+    Animation is a set of poses with a framerate
+    """
+
+    def __init__(
+        self,
+        name=None,
+        context=None,
+        uri=URI(),
+        io=None,
+        licenses=None,
+        skeleton=None,
+        tensors=None,
+        frame_rate=None,
+    ):
+        """Initialize the Image asset."""
+        super(Animation, self).__init__(
+            uri=uri,
+            name=name,
+            context=context,
+            io=io,
+            licenses=licenses,
+            tensors=tensors,
+            skeleton=skeleton,
+        )
+        self.add_property("frame_rate", float, frame_rate)
 
 
 class Transform(Asset):
@@ -603,11 +738,6 @@ class Transform(Asset):
             dependencies=dependencies,
             tensors=tensors,
         )
-
-    @classmethod
-    def category(cls):
-        """Get the entity type name."""
-        return "Transform"
 
     @property
     def translation(self):
@@ -641,3 +771,8 @@ class Transform(Asset):
     def structure(self):
         # extrinsics - 4x4 homogenous, uniform matrix, translation distance in meters
         return (((4, 4), DataType.FLOAT32),)  # COLUMN MAJOR IN M
+
+
+class Cloud(Asset):
+    # TODO: define a point cloud type
+    pass

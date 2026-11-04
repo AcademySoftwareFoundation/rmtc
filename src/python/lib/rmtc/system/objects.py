@@ -507,7 +507,7 @@ class Property:
         if prop_type == PropertyType.OBJECT:
             if value is not None and not isinstance(value, Object):
                 raise RMTCException(
-                    cause=f"Reference must be assigned Object, got: {value.__class__.__name__}"
+                    cause=f"Reference {self.obj.name}.{self.name} must be assigned Object"
                 )
             return value
 
@@ -1005,7 +1005,7 @@ class Object:
         "properties",
     ]
     _id_generator = UUID4()
-    _counter = {}
+    _namer = None
 
     """
     Abstract base class for property-based objects with dynamic composition.
@@ -1035,13 +1035,8 @@ class Object:
         self._broadcaster = Broadcaster()
         self._locked = False
 
-        # count instances for name
-        counter = 1
-        if self.__class__ in Object._counter:
-            counter = Object._counter[self.__class__]
-        Object._counter[self.__class__] = counter + 1
         if name is None:
-            name = f"{self.__class__.__name__}_{counter:04d}"
+            name = self.__class__.__name__
         self.add_property("name", str, name, required=True)
 
         # ID
@@ -1063,6 +1058,27 @@ class Object:
     @classmethod
     def set_id_generator(cls, id_generator):
         cls._id_generator = id_generator
+
+    @classmethod
+    def set_namer(cls, namer):
+        """Install a process-wide namer: a callable taking an object, returning a name"""
+        cls._namer = namer
+
+    def default_name(self):
+        """
+        The entrypoint for assigning a name to this object if the user does not
+        provide one.
+        """
+        if Object._namer is not None:
+            return Object._namer(self)
+        return self.builtin_name()
+
+    def builtin_name(self):
+        """
+        The default builtin name to use for this object when no namer exists to
+        override it.
+        """
+        return self.__class__.__name__
 
     @property
     def type_class(self):
@@ -1308,7 +1324,7 @@ class Objects:
 
     def __repr__(self):
         name = f"{self.__class__.__module__}.{self.__class__.__name__}"
-        return f"{name} - ({len.self._objects})"
+        return f"{name} - ({len(self._objects)})"
 
     def clear(self):
         """Clear all stored objects from all collections."""
@@ -1319,6 +1335,9 @@ class Objects:
         if key in self._id_map:
             return self._id_map[key]
         return None
+
+    def __contains__(self, key):
+        return key in self._id_map
 
     def add(self, objects, add_refs=True):
         """Add objects to appropriate collections based on their entity type."""
@@ -1380,7 +1399,7 @@ class Objects:
         return removed
 
     def get(self, recurse=False):
-        objs = self._objects
+        objs = set(self._objects)
         if recurse:
             objs.update(self._get_references(objs))
         return tuple(objs)

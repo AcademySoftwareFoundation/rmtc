@@ -5,8 +5,9 @@ Scheduler for infer & train
 """
 import enum
 from abc import ABC, abstractmethod
-import rmtc.system.objects
-from rmtc.system.objects import IN
+
+from rmtc.system import RMTCException, Datetime, URI
+from rmtc.system.objects import Object
 
 
 class Status(enum.IntEnum):
@@ -24,10 +25,54 @@ class Status(enum.IntEnum):
         return self.name.upper()
 
 
-class Task(ABC):
+class Executor(ABC):
+    """
+    A executor runs a process across a range and produces a set of artifacts.
+    It represents the functional system of the entire process.
+    Job represents the factional task of the executor - produced by the scehduler
+    from a task
+
+    Inits in a source context
+    Executes immutably in another - returns results
+    Then updates with the results back in the original context
+    """
+
+    @abstractmethod
+    def init(self, rmtc_system):
+        """
+        Setup in context
+        """
+        pass
+
+    @abstractmethod
+    def run(self, rmtc_system, job_range=None) -> (float, [Object]):
+        """
+        Execute a range of inputs tuple: (start,stop)
+        Executes out of context - different process, thread, machine
+        Returns back a 'metric' of the task and the resulting objects
+        """
+        pass
+
+    @abstractmethod
+    def update(self, rmtc_system, index, results):
+        """
+        Deal with interim results in context
+        """
+        pass
+
+
+class Task(Executor, ABC):
     """
     This is used to unify training & inference tasks
     """
+
+    @abstractmethod
+    def get_remaining(self):
+        """
+        How many operations in this task left
+        Jobs may execute a portion of the operations
+        """
+        pass
 
     @abstractmethod
     def get_status(self):
@@ -35,10 +80,6 @@ class Task(ABC):
 
     @abstractmethod
     def get_duration(self):
-        pass
-
-    @abstractmethod
-    def init(self):
         pass
 
     @abstractmethod
@@ -70,49 +111,33 @@ class Task(ABC):
         pass
 
 
-class Scheduler(rmtc.system.objects.Object, ABC):
+class Scheduler(Object, ABC):
     """
     Abstract base class for training and inference job scheduling.
-
-    The Scheduler class manages the execution lifecycle of jobs
-    including initialization, starting, pausing, resuming, and stopping.
-    It coordinates between jobs, trackers, runs, and execution environments.
+    Schedulers spawn jobs which execute ranges on the task.
+    The work with the DB but they are not stored in the DB themselves
     """
 
     def __init__(
         self,
-        tracker=None,
+        rmtc_system,
         task=None,
         job=None,
-        asset_manager=None,
-        env=None,
-        env_manager=None,
+        job_size=None,
     ):
         """Initialize the Scheduler with job components."""
         super(Scheduler, self).__init__()
         self.add_property("job", Job, job)
-        self.add_property("tracker", Tracker, tracker, member=False)
+        self.add_property("job_size", int, job_size)
         self.add_property("task", Task, task, member=False)
-        self.add_property("env", [rmtc.system.Package], env, direction=IN)
-        self._asset_manager = asset_manager
-        self._env_manager = env_manager
-        self._active_time = rmtc.system.Datetime()
+        self._sys = rmtc_system
+        self._active_time = Datetime()
+        if self._sys is None:
+            raise RMTCException("No system")
 
     @property
-    def asset_manager(self):
-        return self._asset_manager
-
-    @property
-    def env_manager(self):
-        return self._env_manager
-
-    @asset_manager.setter
-    def asset_manager(self, value):
-        self._asset_manager = value
-
-    @env_manager.setter
-    def env_manager(self, value):
-        self._env_manager = value
+    def rmtc_system(self):
+        return self._sys
 
     def create_job(self, object_type, **kwargs):
         """Construct a new job."""
@@ -123,11 +148,6 @@ class Scheduler(rmtc.system.objects.Object, ABC):
 
     def __call__(self):
         self.start()
-
-    @abstractmethod
-    def init(self):
-        """Initialize the scheduler for job execution."""
-        pass
 
     @abstractmethod
     def start(self):
@@ -150,12 +170,12 @@ class Scheduler(rmtc.system.objects.Object, ABC):
         pass
 
     @abstractmethod
-    def join(self):
+    def wait(self):
         """Wait for job completion."""
         pass
 
 
-class Tracker(rmtc.system.objects.Object, ABC):
+class Tracker(Object, ABC):
     """
     Abstract base class for training progress tracking.
 
@@ -171,7 +191,7 @@ class Tracker(rmtc.system.objects.Object, ABC):
     def __init__(self, uri=None):
         """Initialize the Tracker with optional URI."""
         super(Tracker, self).__init__()
-        self.add_property("uri", rmtc.system.URI, value=uri)
+        self.add_property("uri", URI, value=uri)
 
     @abstractmethod
     def start(self, artifact):
@@ -244,26 +264,34 @@ class LogTracker(Tracker):
         pass
 
 
-class Job(rmtc.system.objects.Object, ABC):
+class Job(Object, ABC):
     """
     Abstract base class for distributed jobs
     """
 
     def __init__(
         self,
-        tracker=None,
-        task=None,
+        task,
+        rmtc_system,
         job_id=None,
+        job_range=None,
     ):
         """Initialize the Job with tracking and scheduling components."""
         super(Job, self).__init__()
-
-        # references
-        self.add_property("tracker", Tracker, tracker, member=False)
-        self.add_property("task", Task, task, member=False)
-
-        # members
         self.add_property("job_id", str, job_id)
+        self.add_property("task", Task, task, member=False)
+        self.add_property("job_range", [int], job_range)
+        self._sys = rmtc_system
+        if self._sys is None:
+            raise RMTCException("No system")
+
+    @property
+    def rmtc_system(self):
+        return self._sys
+
+    @abstractmethod
+    def get_results(self):
+        pass
 
     @abstractmethod
     def start(self):
@@ -286,45 +314,6 @@ class Job(rmtc.system.objects.Object, ABC):
         pass
 
     @abstractmethod
-    def add_executor(self, executor):
-        """Add an executor to this job."""
-        pass
-
-    @abstractmethod
-    def get_executors(self):
-        """Get all executors associated with this job."""
-        pass
-
-
-class Executor(rmtc.system.objects.Object, ABC):
-    # TODO : Is this required?
-
-    def __init__(
-        self,
-        job=None,
-        env=None,
-        env_manager=None,
-        asset_manager=None,
-    ):
-        """Initialize the Executor with job reference."""
-        super(Executor, self).__init__()
-        self.add_property("job", Job, job)
-        self.add_property("env", [rmtc.system.Package], env, direction=IN)
-        self._env_manager = env_manager
-        self._asset_manager = asset_manager
-
-    @property
-    def asset_manager(self):
-        return self._asset_manager
-
-    @property
-    def env_manager(self):
-        return self._env_manager
-
-    @env_manager.setter
-    def env_manager(self, value):
-        self._env_manager = value
-
-    @abstractmethod
-    def __call__(self, tracker, task):
+    def wait(self):
+        """Wait until finished"""
         pass

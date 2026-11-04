@@ -80,13 +80,13 @@ class ONNXModel(Model):
     def load_weights(self, weights):
         raise RMTCException(f"ONNX Model {self.uri} cannot load weights {weights.uri}")
 
-    def create_weights(self):
+    def create_weights(self, run=None, **kwargs):
         raise NotImplementedError()
 
     def load_checkpoint(self, checkpoint):
         raise RMTCException(f"ONNX Models cannot load checkpoint {checkpoint.uri}")
 
-    def create_checkpoint(self):
+    def create_checkpoint(self, run=None, **kwargs):
         raise RMTCException(f"ONNX Model {self.uri} cannot create checkpoint ")
 
     def move(self, device):

@@ -11,14 +11,11 @@ import re
 
 from Qt import QtWidgets, QtCore, QtGui
 
-import rmtc.core.ops.train.local.schedulers as local_schedulers
-import rmtc.core.ops.train.torch.trainers as torch_trainers
 from rmtc import System
-from rmtc.gui.common.augmentation import AUGMENTATION_WIDGETS
 from rmtc.gui.common.widgets import FilterComboBox
 from rmtc.track import TrackingMessage
 from rmtc.system.objects import Object
-from rmtc.system import Device
+from rmtc.system import Device, TypeName
 from rmtc.gui.common import get_icon_path
 
 
@@ -159,11 +156,10 @@ class CreateRunDialog(QtWidgets.QDialog):
         self._system = rmtc_system
 
         self._setup_ui()
-        self._model_changed()
 
         self.setWindowTitle("Create Training Run")
         self.setWindowIcon(QtGui.QIcon(get_icon_path("rmtc")))
-        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowDeviceHelpButtonHint)
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
         self.setWindowModality(QtCore.Qt.NonModal)
 
         self.resize(600, 700)
@@ -197,7 +193,6 @@ class CreateRunDialog(QtWidgets.QDialog):
             model_display_name = f"{model.name} ({model_date})"
             self._model_combo.addItem(model_display_name, model)
         solution_form_layout.addRow("Model:", self._model_combo)
-        self._model_combo.currentIndexChanged.connect(self._model_changed)
 
         # Trainer
         trainer_form_widget = QtWidgets.QGroupBox("Model Trainer", parent=self)
@@ -205,12 +200,25 @@ class CreateRunDialog(QtWidgets.QDialog):
         layout.addWidget(trainer_form_widget)
 
         # Trainer Options
-        # TODO: training parameters linked to trainer(s)
-        self._trainer = QtWidgets.QComboBox(parent=self)
-        trainers = ["PyTorch Regression"]
-        self._trainer.addItems(trainers)
-        self._trainer.setEnabled(False)
-        trainer_form_layout.addRow("Trainer:", self._trainer)
+        type_names = self._system.factory.get_type_names("Trainer")
+        completer = QtWidgets.QCompleter([str(item) for item in type_names])
+        completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        completer.setFilterMode(QtCore.Qt.MatchContains)
+        self._trainer_creator = QtWidgets.QLineEdit(parent=self)
+        self._trainer_creator.setCompleter(completer)
+        self._trainer_creator.setPlaceholderText("Enter type of Trainer")
+        self._trainer_creator.returnPressed.connect(self.change_object)
+        trainer_form_layout.addRow("Trainer: ", self._trainer_creator)
+
+        type_names = self._system.factory.get_type_names("Scheduler")
+        completer = QtWidgets.QCompleter([str(item) for item in type_names])
+        completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        completer.setFilterMode(QtCore.Qt.MatchContains)
+        self._scheduler_creator = QtWidgets.QLineEdit(parent=self)
+        self._scheduler_creator.setCompleter(completer)
+        self._scheduler_creator.setPlaceholderText("Enter type of Scheduler")
+        self._scheduler_creator.returnPressed.connect(self.change_object)
+        trainer_form_layout.addRow("Scheduler: ", self._scheduler_creator)
 
         self._option_epochs = QtWidgets.QSpinBox(parent=self)
         self._option_epochs.setValue(5)
@@ -264,35 +272,12 @@ class CreateRunDialog(QtWidgets.QDialog):
 
         self.setLayout(layout)
 
-    def _model_changed(self, _idx=None):
-        """Update the UI based on the RMTC model selected"""
-        model = self._model_combo.itemData(self._model_combo.currentIndex())
-        if not model:
-            return
-
-        # Remove the old augmentation widget
-        while self._augment_layout.count():
-            item = self._augment_layout.takeAt(0)
-            if item.widget() is not None:
-                item.widget().deleteLater()
-
-        # Set the augmentation options to match the model input data type
-        augment_widget_class = AUGMENTATION_WIDGETS.get(model.input_type.type_class)
-        if not augment_widget_class:
-            return
-
-        self._augment_widget = augment_widget_class(parent=self)
-        self._augment_layout.addWidget(self._augment_widget)
-
-        # Redraw
-        self._augment_group.adjustSize()
-
     def accept(self):
         """When the user clicks accept, create and submit the training run."""
-        # TODO: Add support for other schedulers (eg. cloud or cue based systems)
-        scheduler = local_schedulers.SimpleTrainAsync(rmtc_system=self._system)
+        scheduler = self._factory.create(TypeName(self._scheduler_creator.text()))
 
-        trainer = torch_trainers.TorchRegression(
+        trainer = self._factory.create(
+            TypeName(self._trainer_creator.text()),
             lr=self._option_lr.value(),
             batch_size=self._option_batch.value(),
             epochs=self._option_epochs.value(),
@@ -398,7 +383,7 @@ class MainWindow(QtWidgets.QMainWindow):
         pos = QtGui.QCursor.pos()
         self.setWindowTitle("RMTC Conductor")
         self.setWindowIcon(QtGui.QIcon(get_icon_path("rmtc")))
-        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowDeviceHelpButtonHint)
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
         self.setGeometry(QtCore.QRect(pos.x(), pos.y(), 650, 700))
 
 

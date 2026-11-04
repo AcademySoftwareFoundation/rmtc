@@ -13,7 +13,11 @@ from rmtc.system import Logger
 class AbstractRMTCTest(unittest.TestCase):
     """Base class for RMTC tests"""
 
-    def __init__(self, methodName="runTest"):
+    def __init__(
+        self, 
+        methodName="runTest",
+        cleanup=True
+    ):
         super(AbstractRMTCTest, self).__init__(methodName)
 
         # Override the name to a unique store so we can
@@ -32,11 +36,23 @@ class AbstractRMTCTest(unittest.TestCase):
         self._db_connection = None
         self._lock_timeout = 15000
         self._log = Logger()
+        self._cleanup = cleanup
+
+    @property
+    def cleanup(self):
+        return self._cleanup
+
+    @cleanup.setter
+    def cleanup(self, value):
+        self._cleanup = value
 
     def setUp(self):
         """Runs before each test method in this class."""
         self.acquire_lock()
         self.addCleanup(self.release_lock)
+        # the namer is process-wide (installed by every System) - reset it so
+        # a test's namer never leaks into the next
+        self.addCleanup(Object.set_namer, None)
         self.clear_database()
 
     def tearDown(self):
@@ -45,7 +61,8 @@ class AbstractRMTCTest(unittest.TestCase):
 
     def clear_database(self):
         """Delete the test graph"""
-        self.get_system().delete_all()
+        if self._cleanup:
+            self.get_system().delete_all()
 
     def get_system(self, **kwargs): # add all system args here
         """Get an instance of the RMTC System."""

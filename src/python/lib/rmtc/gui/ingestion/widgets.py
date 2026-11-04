@@ -592,8 +592,10 @@ class Junction(QtWidgets.QWidget, metaclass=QABCMeta):
 
     def get_node(self, entity):
         """Find node for the given entity"""
+        if entity is None:
+            return None
         if entity.obj_id in self._entity_to_node:
-            return self._entity_to_node[entity.obj_id]
+            return self._entity_to_node.get(entity.obj_id)
         return None
 
     def setup_node_connections(self, node):
@@ -686,6 +688,7 @@ class Junction(QtWidgets.QWidget, metaclass=QABCMeta):
 
             # remove from graph
             self._graph.delete_node(node)
+            self._entity_to_node.pop(entity.obj_id, None)
 
 
 class Solution(EntityNode):

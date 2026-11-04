@@ -90,7 +90,7 @@ Asset:
     class_path:   rmtc.ops.assets.Skeleton
   Pose:
     version:      1.0.0
-    class_path:   rmtc.ops.assets.Pose        
+    class_path:   rmtc.ops.assets.Pose
 
 IO:
   AggregationIO:

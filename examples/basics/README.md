@@ -28,7 +28,7 @@ python example_01_simple.py
 ### Connect to the RMTC server and query for an entity
 Start the server, then in another shell query it for the "Apache-2.0" license it creates.
 ```bash
-rmtcserver&
+rmtcserver --config demo &
 python example_02_rest_api.py
 ```
 

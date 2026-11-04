@@ -2,6 +2,8 @@
 # Copyright Contributors to the RMTC Project
 
 import os
+import tempfile
+from pathlib import Path
 
 from rmtc.ops.pipeline import ReaderWriter
 from rmtc.system import FileURI, RMTCException
@@ -14,7 +16,7 @@ class DiskReaderWriter(ReaderWriter):
     def __init__(
         self,
         log,
-        env,
+        env_manager,
         publisher,
         immutable=True,
         root=None,
@@ -22,7 +24,7 @@ class DiskReaderWriter(ReaderWriter):
     ):
         super(DiskReaderWriter, self).__init__(
             log=log,
-            env=env,
+            env_manager=env_manager,
             publisher=publisher,
             immutable=immutable,
         )
@@ -80,6 +82,9 @@ class DiskReaderWriter(ReaderWriter):
             return str(artifact.version)
         return self.timestamp_segment(artifact.instantiated_at)
 
+    def create_transient_uri(self, name):
+        return FileURI(path=Path(tempfile.mkdtemp(name)))
+
     def create_uri(self, artifact, root):
         """
         Derive the artifact URI beneath the root.
@@ -119,6 +124,13 @@ class DiskReaderWriter(ReaderWriter):
             raise RMTCException("Invalid uri")
         if self.is_immutable():
             raise RMTCException(f"Deleting file {uri} disallowed due to immutability")
+        if uri.path == "/":
+            raise RMTCException(f"Attempting to delete root {uri}")
         if self.exists([uri]):
-            raise NotImplementedError()
-            # uri.path.unlink()
+            if uri.path.is_dir():
+                try:
+                    uri.path.rmdir()
+                except OSError:
+                    pass
+            else:
+                uri.path.unlink()

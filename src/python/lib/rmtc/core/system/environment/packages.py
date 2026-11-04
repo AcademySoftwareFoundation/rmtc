@@ -41,10 +41,10 @@ class PackageTracker(BaseEnvironmentManager):
     def teardown_packages(self, packages):
         return True
 
-    def setup(self, env):
+    def setup(self, env_name):
         return True
 
-    def teardown(self, env):
+    def teardown(self, env_name):
         return True
 
     def get_packages(self):

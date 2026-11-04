@@ -135,6 +135,43 @@ Further worked examples, each with their own README, can be found under [example
 * [Tracking](examples/tracking) - lower-level DB tracking calls, useful for instrumenting your own pipelines
 * [Pipeline](examples/pipeline) - build artifact variants with the asset manager pipeline builders and publish them
 
+## Web UI and Server
+
+Optionally, you can spin up a REST server and a Web UI to query and browse entities in the database.
+
+The REST server has its own `pyproject.toml` file, so you can install its dependencies after `pip install .` to run it in a separate terminal:
+
+```bash
+pip install ./src/python/server
+gunicorn --workers 2 --bind 127.0.0.1:9000 "rmtc_server.app:create_app()"
+```
+
+You should see `[INFO] Listening at: http://127.0.0.1:9000 (<pid>)`
+
+The server uses the same environment variables and config as [Configuration](#configuration)
+
+To populate the database so that there is something for the server to serve, you can run one of the examples - [this one, for instance](examples/basics/example_01_simple.py). 
+Since the examples use a demo config by default, you will want to remove this line so that it uses your `RMTC_CONFIG_NAME` environment variable instead:
+```python
+rmtc_sys            = System(
+    config          = Config(), #removed name=demo
+)
+```
+
+The Web UI runs on Node JS (>= 22). You can set up a development server using `npm` in another separate terminal:
+
+```bash
+cd ./src/web/browser
+npm ci
+npm run dev
+```
+
+You should see `Local: http://localhost:5173/`
+
+After populating the database, you can search for `Test` and the entities from the example should show up.
+
+For more details, see [server docs](docs/technical/server.md) and [webui docs](docs/technical/webui.md)
+
 ## Code Structure
 
 The rmtc module provides abstractions and system objects, with rmtc.core providing the basic implementation. There is some functionality within rmtc, but without core it doesn't do a lot. We generally follow PEP8 style, with a lean towards verbosity for the sake of comprehension to an engineer less familiar with Python. We use abstract interfaces and injection with strong typing in the property system - but stopping short of true python type checking. Methods take arrays where possible - to provide allowance for batch optimisations later.
@@ -142,8 +179,8 @@ The rmtc module provides abstractions and system objects, with rmtc.core providi
 Regarding package names - we use the following structure:
 `rmtc.<module>.<subsystem>.<component>[.<technology>].<file>`
 * module - the root module - `core` is the reference implementation shipped with RMTC; a facility can add its own (e.g. `weta`) following the same layout
-* subsystem - the top level functional area within the module - `ops`, `track` or `system`
-* component - the specific area within that subsystem - e.g. `artifacts`, `io`, `pipeline`, `process`, `train`, `infer`, `scheduling` under `ops`; `entities`, `store`, `filters`, `publishing`, `tracing` under `track`; `environment`, `interface`, `objects` under `system`
+* subsystem - the top level functional area within the module - `ops`, `track`, `system` or `interface`
+* component - the specific area within that subsystem - e.g. `artifacts`, `io`, `pipeline`, `process`, `train`, `infer`, `scheduling` under `ops`; `entities`, `store`, `filters`, `publishing`, `tracing` under `track`; `environment`, `objects`, `serializers` under `system`; `rest` under `interface`
 * technology - the system or tech satisfying the component, omitted where there's only one implementation - `oiio`, `torch`, `onnx`, `cypher`, `nuke`, `safetensors`
 * file - the file grouping the class(es) - `model`, `dataset`, `builders`
 
@@ -152,7 +189,7 @@ For example:
 * `rmtc.core.ops.artifacts.torch.models`
 * `rmtc.core.track.store.cypher.neo4j`
 
-Note that base types like `Logger` and `Config` live directly in `rmtc.system`, not `rmtc.core.system` - the latter only holds concrete technology implementations (environment, interface, objects).
+Note that base types like `Logger` and `Config` live directly in `rmtc.system`, not `rmtc.core.system` - the latter only holds concrete technology implementations (environment, objects, serializers). The `Interface`, `Client` and `Server` base classes live in `rmtc.interface`, with the concrete REST client in `rmtc.core.interface.rest`.
 
 For further information see the [technical notes](docs/technical/README.md) documentation.
 

@@ -228,6 +228,7 @@ class Checkpoint(entities.Checkpoint, Artifact, ABC):
         licenses=None,
         dependencies=None,
         devices=None,
+        name=None,
     ):
         """Initialize the Checkpoint artifact."""
         super(Checkpoint, self).__init__(
@@ -237,6 +238,7 @@ class Checkpoint(entities.Checkpoint, Artifact, ABC):
             model=model,
             licenses=licenses,
             dependencies=dependencies,
+            name=name,
         )
         self.add_property("io", IO, io, direction=IN)
         self.add_property("devices", [Device], devices)
@@ -463,6 +465,7 @@ class Model(entities.Model, Artifact, ABC):
     def __init__(
         self,
         name=None,
+        model_id=None,
         context=None,
         uri=None,
         version=None,
@@ -472,7 +475,6 @@ class Model(entities.Model, Artifact, ABC):
         input_optionals=None,
         output_names=None,
         output_types=None,
-        output_processors=None,
         output_packager=None,
         io=None,
         licenses=None,
@@ -486,6 +488,7 @@ class Model(entities.Model, Artifact, ABC):
         """Initialize the Model artifact."""
         super(Model, self).__init__(
             name=name,
+            model_id=model_id,
             context=context,
             uri=uri,
             version=version,
@@ -665,7 +668,7 @@ class Model(entities.Model, Artifact, ABC):
         pass
 
     @abstractmethod
-    def create_weights(self):
+    def create_weights(self, run=None, **kwargs):
         """
         Create a new weights object for this model.
 
@@ -676,7 +679,7 @@ class Model(entities.Model, Artifact, ABC):
         pass
 
     @abstractmethod
-    def create_checkpoint(self):
+    def create_checkpoint(self, run=None, **kwargs):
         """
         Create a new checkpoint object for this model.
 
@@ -685,6 +688,16 @@ class Model(entities.Model, Artifact, ABC):
         have the appropriate structure for storing complete model state.
         """
         pass
+
+    def _adopt_result(self, result, run, name):
+        """
+        Link a weights/checkpoint to the run it came from and name it.
+        """
+        if run is not None:
+            result.parent = run
+        if name is None:
+            result.name = result.default_name()
+        return result
 
     @abstractmethod
     def load_weights(self, weights: Weights):
@@ -726,7 +739,7 @@ class Model(entities.Model, Artifact, ABC):
 
         # use current model device
         if device is None:
-            device = self.device
+            device = self.get_device()
 
         # inputs is a list of samples, each a list of asset elements
         for sample in inputs:
@@ -743,7 +756,7 @@ class Model(entities.Model, Artifact, ABC):
 
         # package into model format
         if self.input_packager:
-            data = self.input_packager.run(data)
+            data = self.input_packager.run(data, device=device)
 
         return data
 
@@ -932,7 +945,7 @@ class Dataset(entities.Dataset, Table, Artifact):
                 asset.move(device)
 
     def __len__(self):
-        return len(self._rows)
+        return self.rows()
 
     def __iter__(self):
         return RowTableIterator(self._rows, labels=self.columns)
@@ -949,7 +962,7 @@ class Dataset(entities.Dataset, Table, Artifact):
         if len(types) != len(self.types):
             return False
         for a, b in zip(types, self.types):
-            if not issubclass(b, a):
+            if not issubclass(b.type_class, a.type_class):
                 return False
         return True
 
@@ -968,13 +981,8 @@ class Dataset(entities.Dataset, Table, Artifact):
         return True
 
     def reset(self):
-
-        # reset assets list
-        self.assets = []
-
         # reset rows
         self._rows = []
-        self._member_ids = None
 
     def is_valid(self):
         """
@@ -1060,7 +1068,7 @@ class Dataset(entities.Dataset, Table, Artifact):
 
         # add to assets
         if self._member_ids is None:
-            self._member_ids = {asset.obj_ids for asset in self.assets}
+            self._member_ids = {asset.obj_id for asset in self.assets}
         new_assets = [asset for asset in row if asset.obj_id not in self._member_ids]
         if new_assets:
             self.add_assets(new_assets)
@@ -1181,6 +1189,13 @@ class Aggregation(Dataset, Table, Artifact):
         if self.order == Order.ROW:
             return RowMajorIterator(dataset_iterators)
         return ColMajorIterator(dataset_iterators)
+
+    def duplicate(self, descendent=False):
+        # NOTE: this prevents an infinite duplicate bug
+        # by specifically duplicating it's members
+        dupe = super(Aggregation, self).duplicate(descendent=False)
+        dupe.datasets = [dataset.duplicate() for dataset in self.datasets]
+        return dupe
 
     def cols(self):
         if len(self.datasets) == 0:

@@ -7,7 +7,6 @@ from rmtc.core.ops.process.image.color import LinearNormalize
 from rmtc.core.ops.process.tensor.structure import ConvertDataType
 from rmtc.core.ops.process.image.channels import (
     MoveChannelsFirst,
-    SwapWidthHeight,
     Flip,
     TrimAlpha,
 )
@@ -48,7 +47,6 @@ class PyTorchFormat(Process):
                 TrimAlpha(),
                 LinearNormalize(scale_range=[-1, 1]),
                 ConvertDataType(to_data_type=DataType.FLOAT32),
-                SwapWidthHeight(),
                 MoveChannelsFirst(),
             ]
         )
@@ -72,7 +70,6 @@ class KerasFormat(Process):
                 TrimAlpha(),
                 LinearNormalize(scale_range=[-1, 1]),
                 ConvertDataType(to_data_type=DataType.FLOAT32),
-                SwapWidthHeight(),
             ]
         )
 
@@ -96,7 +93,6 @@ class OpenCVFormat(Process):
                 Flip(),
                 LinearNormalize(scale_range=[0, 1]),
                 ConvertDataType(to_data_type=DataType.INT8),
-                SwapWidthHeight(),
             ]
         )
 
@@ -118,7 +114,6 @@ class OIIOFormat(Process):
             [
                 LinearNormalize(scale_range=[0, 1]),
                 ConvertDataType(to_data_type=DataType.FLOAT32),
-                SwapWidthHeight(),
             ]
         )
 

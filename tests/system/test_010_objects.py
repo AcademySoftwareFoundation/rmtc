@@ -304,3 +304,44 @@ class TestObjects(AbstractRMTCTest):
                 failed = True
         self.assertTrue(failed)
         self.assertEqual(obj.test, 2)
+
+    def test_unnamed_object_gets_class_name(self):
+        self.assertEqual(Object().name, "Object")
+        self.assertEqual(MockEventObject().name, "MockEventObject")
+        self.assertEqual(MockEventObject().name, "MockEventObject")
+
+    def test_explicit_name_kept(self):
+        self.assertEqual(Object(name="Named").name, "Named")
+        self.assertEqual(MockObjectA().name, "Object A")
+
+    def test_builtin_name_is_class_name(self):
+        self.assertEqual(MockEventObject().builtin_name(), "MockEventObject")
+
+    def test_default_name_without_namer(self):
+        Object.set_namer(None)
+        obj = MockEventObject()
+        self.assertEqual(obj.default_name(), obj.builtin_name())
+
+    def test_default_name_uses_installed_namer(self):
+        self.addCleanup(Object.set_namer, None)
+        seen = []
+
+        def namer(obj):
+            seen.append(obj)
+            return f"custom_{obj.builtin_name()}"
+
+        Object.set_namer(namer)
+        obj = MockEventObject()
+        self.assertEqual(obj.default_name(), "custom_MockEventObject")
+        self.assertEqual(seen, [obj])
+
+    def test_installed_namer_not_used_by_init(self):
+        """__init__ runs before subclass links exist, so it never calls the namer"""
+        self.addCleanup(Object.set_namer, None)
+        Object.set_namer(lambda obj: "from_namer")
+        self.assertEqual(MockEventObject().name, "MockEventObject")
+
+    def test_set_namer_none_restores_builtin(self):
+        Object.set_namer(lambda obj: "from_namer")
+        Object.set_namer(None)
+        self.assertEqual(MockEventObject().default_name(), "MockEventObject")

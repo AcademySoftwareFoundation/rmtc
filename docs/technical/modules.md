@@ -175,7 +175,7 @@ This document describes each of RMTC's major modules and subsystems, their purpo
 
 **Environment Module** (`src/python/lib/rmtc/core/system/environment/packages.py`) — Package and environment management (e.g., UV virtual environments). Allows injection of environment managers for dependency resolution.
 
-**Interface Module** (`src/python/lib/rmtc/core/system/interface/`) — REST Server & Client stub for bridging distributed Systems via network.
+**Interface Module** (`src/python/lib/rmtc/interface/`, REST client in `src/python/lib/rmtc/core/interface/rest/`) — Client & Server abstractions and a REST client for bridging distributed Systems via network. The Flask REST server is the separate `rmtc-server` package (`src/python/server/`).
 
 ## Key Design Patterns
 

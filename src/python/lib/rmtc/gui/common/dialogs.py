@@ -213,7 +213,7 @@ class PublisherDialog(QtWidgets.QDialog):
         self.setLayout(layout)
 
         self.setWindowTitle("Publish")
-        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowDeviceHelpButtonHint)
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
 
         self.resize(500, 600)
 

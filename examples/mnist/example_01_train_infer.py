@@ -12,8 +12,6 @@ import torch.nn as nn
 import rmtc.core.track.entities.licenses.community as community_licenses
 import rmtc.core.ops.artifacts.torch.models as torch_models
 import rmtc.core.ops.artifacts.structured.datasets as structured_datasets
-import rmtc.core.ops.process.image.channels as channel_processors
-import rmtc.core.ops.train.local.schedulers as local_train_schedulers
 import rmtc.core.ops.train.torch.trainers as torch_trainers
 import rmtc.core.ops.io.oiio.image as image_io
 import rmtc.core.ops.io.torch.models as model_io
@@ -23,6 +21,7 @@ import rmtc.core.ops.io.filesystem.folders as folder_io
 import rmtc.ops.artifacts as artifacts
 import rmtc.ops.assets as assets
 import rmtc.ops.process as process
+from rmtc.core.ops.scheduling.local import schedulers
 from rmtc.core.ops.infer.simple import inferers
 from rmtc.core.ops.process.torch.packagers.tensor import BatchedTorchTensor
 from rmtc.track.entities import Party
@@ -159,7 +158,7 @@ solution            = rmtc_sys.create_solution(
 # Run the training
 run                 = rmtc_sys.train(
     solution        = solution,
-    scheduler       = local_train_schedulers.LocalTrainScheduler(rmtc_system=rmtc_sys),
+    scheduler       = schedulers.LocalScheduler(rmtc_system=rmtc_sys),
     trainer         = torch_trainers.TorchRegression(
         lr          = 0.001, 
         batch_size  = 5,
@@ -184,25 +183,26 @@ inference           = rmtc_sys.infer(
     solution        = solution,
         model       = run.model,
         weights     = run.result_weights,
-    inputs          = [rmtc_sys.create_dataset(
+    inputs          = rmtc_sys.create_dataset(
         artifacts.Dataset,
-        columns     = ["image"],        
+        columns     = ["image"],
         uri         = FileURI(f"{args.mnist_path}/test/exr"), 
         io          = folder_io.FolderIO(
             asset_type=assets.Image,
             asset_io=image_io.EXR(),
         )
-    )],    
-    outputs         = [rmtc_sys.create_dataset(
-        artifacts.Dataset,        
+    ),    
+    outputs         = rmtc_sys.create_dataset(
+        artifacts.Dataset,
         uri         = FileURI(args.results_path),
-        columns     = ["label"],             
+        columns     = ["label"],
         io          = folder_io.FolderIO(
             asset_type=assets.Values,
             asset_io=structured_io.ValuesJSONFile(),
         )
-    )],    
-    inferer         = inferers.BatchedInferer(),    
+    ),    
+    inferer         = inferers.BatchedInferer(),
+    scheduler       = schedulers.LocalScheduler(rmtc_system=rmtc_sys),
 )
 
 # push

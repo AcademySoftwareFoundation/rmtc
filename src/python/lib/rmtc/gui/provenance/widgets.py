@@ -313,6 +313,10 @@ class SignalBox(QtWidgets.QWidget, metaclass=QABCMeta):
             TrackingMessage.ADDED,
             lambda data: [self.create_nodes(entities=data, factory=system.factory)],
         )
+        system.track.broadcaster.add(
+            TrackingMessage.REMOVED,
+            lambda data: [self.delete_nodes(entities=data, factory=system.factory)],
+        )
         system.track.broadcaster.add(TrackingMessage.CLEARED, lambda data: self.clear())
 
         # init the graph
@@ -581,10 +585,11 @@ class SignalBox(QtWidgets.QWidget, metaclass=QABCMeta):
             node.unlock()
 
     def get_node(self, entity):
+        """Find node for the given entity"""
         if entity is None:
             return None
         if entity.obj_id in self._entity_to_node:
-            return self._entity_to_node[entity.obj_id]
+            return self._entity_to_node.get(entity.obj_id)
         return None
 
     def connect_node(self, node):
@@ -644,6 +649,23 @@ class SignalBox(QtWidgets.QWidget, metaclass=QABCMeta):
         # layout new nodes
         self._graph.auto_layout_nodes(nodes=nodes)
 
+    def delete_nodes(self, entities, factory):
+        """Delete local nodes - BUT DON'T DELETE FROM STORE"""
+        for entity in entities:
+
+            # check if we can create a node
+            if not _is_supported(entity.__class__):
+                continue
+
+            # find
+            node = self.get_node(entity)
+            if node is None:
+                continue
+
+            # remove from graph
+            self._graph.delete_node(node)
+            self._entity_to_node.pop(entity.obj_id, None)
+
     def expand_node(self, node, direction=Direction.DERIVATIVES):
         """Expand a node by revealing related entities in the specified direction."""
 
@@ -655,7 +677,7 @@ class SignalBox(QtWidgets.QWidget, metaclass=QABCMeta):
         if direction == Direction.SOURCES:
             sources = self._system.trace_sources(entity, recurse=False)
             in_port = node.in_port
-            for other_entity in sources[1]:
+            for other_entity, _ in sources[1]:
                 other_node = self.get_node(other_entity)
                 if other_node is not None:
                     other_node.out_port.connect_to(in_port)
@@ -664,7 +686,7 @@ class SignalBox(QtWidgets.QWidget, metaclass=QABCMeta):
         if direction == Direction.DERIVATIVES:
             derivatives = self._system.trace_derivatives(entity, recurse=False)
             out_port = node.out_port
-            for other_entity in derivatives[1]:
+            for other_entity, _ in derivatives[1]:
                 other_node = self.get_node(other_entity)
                 if other_node is not None:
                     out_port.connect_to(other_node.in_port)

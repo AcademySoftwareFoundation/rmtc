@@ -8,64 +8,7 @@ architectures.
 """
 
 
-from abc import ABC, abstractmethod
-
-
-class Serializer(ABC):
-    """
-    Abstract base class for object serialization and deserialization.
-
-    The Serializer class provides a framework for converting objects to and from
-    a text format with type information preservation. It manages a factory for
-    object creation and maintains a collection of objects to be serialized.
-
-    This class is designed to handle complex object hierarchies while preserving
-    type information during the serialization process, enabling accurate
-    reconstruction of objects during deserialization.
-    """
-
-    def __init__(self, factory, objects):
-        """Initialize the Serializer with factory and objects."""
-        self._factory = factory
-        self._objects = objects
-
-    @property
-    def factory(self):
-        """Get the object factory used for deserialization."""
-        return self._factory
-
-    def objects(self):
-        """Get the collection of objects managed by this serializer."""
-        return self._objects
-
-    @abstractmethod
-    def serialize(self):
-        """
-        Convert the object list into a JSON string.
-
-        Abstract method that must be implemented by subclasses to define
-        how objects are converted to string format with type preservation.
-
-        The implementation should:
-        - Convert all managed objects to JSON format
-        - Preserve type information for accurate deserialization
-        - Handle complex object relationships and references
-        """
-
-    @abstractmethod
-    def deserialize(self, string):
-        """
-        Create or update the object list from a string.
-
-        Abstract method that must be implemented by subclasses to define
-        how objects are reconstructed from the string format using type information.
-
-        The implementation should:
-        - Parse the string to extract object data and types
-        - Use the factory to create appropriate object instances
-        - Restore object relationships and references
-        - Update the managed objects collection
-        """
+from abc import ABC
 
 
 class Interface(ABC):
@@ -82,17 +25,12 @@ class Interface(ABC):
     data format handling.
     """
 
-    # TODO: This is incomplete testing code only
-
     def __init__(self, rmtc_system=None, serializer=None):
         """Initialize the Interface with system and serializer components."""
         self._system = rmtc_system
         self._serializer = serializer
 
-    @abstractmethod
-    def get_entities(self, name=None):
-        """Retrieve entities from the system by name."""
-        pass
+    # TODO : add the end points in here
 
     @property
     def system(self):
@@ -113,8 +51,6 @@ class Client(Interface):
     provides a local interface to remote RMTC system capabilities.
     """
 
-    # TODO: This is incomplete testing code only
-
     def __init__(self, rmtc_system=None, serializer=None):
         """Initialize the Client interface."""
         super(Client, self).__init__(rmtc_system=rmtc_system, serializer=serializer)
@@ -132,8 +68,6 @@ class Server(Interface):
     routing, authentication, authorization, and response generation. It
     provides the server endpoint for RMTC system operations.
     """
-
-    # TODO: This is incomplete testing code only
 
     def __init__(self, rmtc_system=None, serializer=None):
         """Initialize the Server interface."""

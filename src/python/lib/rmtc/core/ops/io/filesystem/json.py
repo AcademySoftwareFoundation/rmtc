@@ -86,7 +86,19 @@ class ValuesJSONFile(IO):
         return uri.scheme == "file"
 
     def read(self, uri, artifact, asset_manager):
-        raise NotImplementedError()
+
+        if not self.is_artifact_supported(artifact):
+            raise RMTCException(
+                f"Mismatched artifact {artifact} with reader writer {self}"
+            )
+        with open(uri.path, "r", encoding="utf8") as json_file:
+            json_data = json.load(json_file)
+
+        # sort the data first as JSON removes that information
+        values = [json_data[key] for key in sorted(json_data, key=int)]
+
+        # assign to the tensor
+        artifact.tensors = (np.array(values, dtype="float32"),)
 
     def write(self, uri, artifact, asset_manager):
 

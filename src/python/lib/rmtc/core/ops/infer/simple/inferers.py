@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Contributors to the RMTC Project
 
+import itertools
+
 from rmtc.ops.infer import Inferer
 from rmtc.ops.artifacts import Dataset
 from rmtc.ops.process import Process
@@ -26,7 +28,8 @@ class DatasetInferer(Inferer):
         self,
         inference,
         asset_manager,
-    ):
+        input_range,
+    ) -> (float, (Dataset)):
         """
         Execute inference on the provided datasets
         """
@@ -35,23 +38,27 @@ class DatasetInferer(Inferer):
         if inference is None:
             raise RMTCException("Invalid inference on infer")
         inputs = inference.inputs
-        outputs = inference.outputs
+        outputs = inference.outputs.duplicate()
+
         if inputs is None:
             raise RMTCException("Invalid input dataset on infer")
         if outputs is None:
             raise RMTCException("Invalid output dataset on infer")
 
         # move to device ahead of read
-        for dataset in inputs:
-            dataset.move(self.device)
+        inputs.move(self.device)
+        outputs.move(self.device)
 
         # read the datasets
-        asset_manager.read(inputs)
+        asset_manager.read([inputs])
         model = self.get_model_instance(inference, asset_manager)
 
         # iterate through the dataset in batches
         batch = []
-        for row in Dataset.generate_rows(inputs):
+        generator = Dataset.generate_rows([inputs])
+        if input_range[1] > input_range[0]:
+            generator = itertools.islice(generator, input_range[0], input_range[1])
+        for row in generator:
             batch.append(row)
 
         # load inputs and process
@@ -67,8 +74,7 @@ class DatasetInferer(Inferer):
 
         # add to the outputs
         for row in results:
-            for dataset in outputs:
-                row = dataset.fill_row(row)
+            row = outputs.fill_row(row)
 
         # setup metric either from weights, or model
         metric = 1.0
@@ -77,7 +83,7 @@ class DatasetInferer(Inferer):
         else:
             metric = inference.model.metric
 
-        return (inputs, outputs, metric)
+        return (metric, [outputs])
 
 
 class BatchedInferer(Inferer):
@@ -88,7 +94,6 @@ class BatchedInferer(Inferer):
     def __init__(
         self,
         batch_size=1,
-        flush_outputs=True,
         device=Device.GPU,
         pre_process=None,
         post_process=None,
@@ -111,12 +116,11 @@ class BatchedInferer(Inferer):
         )
         self.add_property("batch_size", int, batch_size)
 
-        self.add_property("flush_outputs", bool, flush_outputs)
-
     def run(
         self,
         inference,
         asset_manager,
+        input_range,
     ):
         """
         Execute inference on the provided datasets
@@ -126,32 +130,32 @@ class BatchedInferer(Inferer):
         if inference is None:
             raise RMTCException("Invalid inference on infer")
         inputs = inference.inputs
-        outputs = inference.outputs
         if inputs is None:
             raise RMTCException("Invalid input dataset on infer")
-        if outputs is None:
-            raise RMTCException("Invalid output dataset on infer")
+
+        # construct a new temporary output - this is written out by the
+        # ranged scheduler
+        outputs = inference.outputs.duplicate()
 
         # move to device ahead of read
         # TODO : race condition if dataset is being used in multiple places?
-        for dataset in inputs:
-            dataset.move(self.device)
+        inputs.move(self.device)
+        outputs.move(self.device)
 
         # read the datasets - this doesn't load any asset tensors, just builds up the datasets
         # e.g. loads the CSV file list of other assets etc. puts the dataset into a state where
         # we can iterate
-        asset_manager.read(inputs)
-        for dataset in inputs:
-            if not dataset.is_valid():
-                raise RMTCException(f"Invalid input {dataset}")
-        # for dataset in outputs:
-        #     if not dataset.is_valid():
-        #         raise RMTCException(f"Invalid output {dataset}")
+        asset_manager.read([inputs])
+        if not inputs.is_valid():
+            raise RMTCException(f"Invalid input {inputs}")
         model = self.get_model_instance(inference, asset_manager)
 
         # iterate through the dataset in batches
         batch = []
-        for row in Dataset.generate_rows(inputs):
+        generator = Dataset.generate_rows([inputs])
+        if input_range[1] > input_range[0]:
+            generator = itertools.islice(generator, input_range[0], input_range[1])
+        for row in generator:
 
             # accumulate
             batch.append(row)
@@ -165,10 +169,6 @@ class BatchedInferer(Inferer):
         if batch:
             self._run_batch(batch, model, outputs, asset_manager)
 
-        if self.flush_outputs:
-            asset_manager.write(outputs)
-            asset_manager.reset(outputs)
-
         # setup metric either from weights, or model
         metric = 1.0
         if inference.weights is not None:
@@ -176,7 +176,7 @@ class BatchedInferer(Inferer):
         else:
             metric = inference.model.metric
 
-        return (inputs, outputs, metric)
+        return (metric, [outputs])
 
     def _run_batch(self, batch, model, outputs, asset_manager):
         # load inputs and process
@@ -198,8 +198,7 @@ class BatchedInferer(Inferer):
             if self.post_process:
                 for asset, process in zip(row, self.post_process):
                     asset.process(process)
-            for dataset in outputs:
-                row = dataset.fill_row(row)
+            row = outputs.fill_row(row)
 
 
 class ParametricInferer(Inferer):

@@ -21,7 +21,7 @@ args                = parser.parse_args()
 ###############################################################################
 
 rmtc_sys            = System(
-    config          = Config(name="demo"),   
+    config          = Config(name="demo"),
 )
 
 entities = rmtc_sys.get_entities(name=args.entity, exact=False)

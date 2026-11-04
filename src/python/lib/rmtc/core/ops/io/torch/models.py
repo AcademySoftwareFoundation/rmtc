@@ -222,6 +222,8 @@ class TorchScript(IO):
         """Save PyTorch weights from artifact to file."""
         if artifact.torch_model is not None:
             model = artifact.torch_model
+            if not torch.cuda.is_available():
+                raise RMTCException("Can't trace weights without cuda")
             model = model.to("cuda")
             model.eval()
             with torch.no_grad():

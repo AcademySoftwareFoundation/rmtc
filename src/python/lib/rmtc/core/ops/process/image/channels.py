@@ -124,7 +124,7 @@ class ExtractChannel(Process):
         out = []
         for tensor in tensors:
             h, w, _ = tensor.shape
-            alpha = np.ones((w, h, 1), dtype=np.float32)
+            alpha = np.ones((h, w, 1), dtype=np.float32)
             out.append(np.concatenate([tensor, tensor, tensor, alpha], axis=2))
         return out
 
@@ -229,7 +229,6 @@ class CHWImage(Process):
     """
 
     def run(self, tensors: tuple[Array]) -> tuple[Array]:
-        tensors = SwapWidthHeight().run(tensors)
         tensors = MoveChannelsFirst().run(tensors)
         return tensors
 

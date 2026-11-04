@@ -114,11 +114,11 @@ class TorchModel(Model):
         # ignore model prefixes
         self._model.load_state_dict(weights.torch_weights, strict=False)
 
-    def create_weights(self):
+    def create_weights(self, run=None, **kwargs):
         """Create weights artifact from current model state."""
-        weights = TorchWeights(model=self)
+        weights = TorchWeights(model=self, **kwargs)
         weights.torch_weights = self.torch_model.state_dict()
-        return weights
+        return self._adopt_result(weights, run, kwargs.get("name"))
 
     def load_checkpoint(self, checkpoint):
         """
@@ -136,11 +136,11 @@ class TorchModel(Model):
             raise RMTCException("Invalid checkpoint")
         self._model.load_state_dict(checkpoint.torch_weights)
 
-    def create_checkpoint(self):
+    def create_checkpoint(self, run=None, **kwargs):
         """Create checkpoint artifact from current model state."""
-        checkpoint = TorchCheckpoint(model=self)
+        checkpoint = TorchCheckpoint(model=self, **kwargs)
         checkpoint.torch_weights = self.torch_model.state_dict()
-        return checkpoint
+        return self._adopt_result(checkpoint, run, kwargs.get("name"))
 
     def move(self, device):
         """Move model to specified execution device (CPU/CUDA)."""

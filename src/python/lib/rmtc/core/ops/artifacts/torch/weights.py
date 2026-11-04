@@ -21,6 +21,8 @@ class TorchWeights(Weights):
 
     def __init__(
         self,
+        name=None,
+        version=None,
         uri=URI(),
         context=None,
         model=None,
@@ -29,6 +31,8 @@ class TorchWeights(Weights):
     ):
         """Initialize TorchWeights with PyTorch-specific reader/writer."""
         super(TorchWeights, self).__init__(
+            name=name,
+            version=version,
             uri=uri,
             context=context,
             model=model,

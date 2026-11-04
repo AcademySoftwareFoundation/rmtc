@@ -11,8 +11,7 @@ import numpy as np
 
 from rmtc.ops.tensor import Tensor, Array
 from rmtc.ops.process import Packager
-from rmtc.system import Device
-from rmtc.system import DataType
+from rmtc.system import Device, DataType, RMTCException
 
 
 class SingleTorchTensor(Packager):
@@ -41,10 +40,10 @@ class SingleTorchTensor(Packager):
             out = out.astype(Tensor.to_array_type(self.data_type))
 
         # convert to torch
-        device = "cuda"
+        device_name = "cuda"
         if device == Device.CPU:
-            device = "cpu"
-        out = torch.from_numpy(out).to(device)
+            device_name = "cpu"
+        out = torch.from_numpy(out).to(device_name)
 
         # return
         return out
@@ -80,6 +79,12 @@ class BatchedTorchTensor(Packager):
             tensors.append(sample[0][0])
 
         # stack all that up
+        shape = tensors[0].shape
+        for i, tensor in enumerate(tensors):
+            if tensor.shape != shape:
+                raise RMTCException(
+                    f"Cannot batch differing shapes: {shape} vs {i}={tensor.shape}"
+                )
         out = np.stack(tensors, axis=0)
 
         # make flat
@@ -89,10 +94,10 @@ class BatchedTorchTensor(Packager):
             out = out.astype(Tensor.to_array_type(self.data_type))
 
         # convert to torch
-        device = "cuda"
+        device_name = "cuda"
         if device == Device.CPU:
-            device = "cpu"
-        out = torch.from_numpy(out).to(device)
+            device_name = "cpu"
+        out = torch.from_numpy(out).to(device_name)
 
         # return
         return out

@@ -71,7 +71,7 @@ class FolderIO(IO):
                 if not asset.uri.is_valid():
                     # member names are unique within the dataset folder,
                     # so no instantiated_at segment is needed
-                    asset.name = f"{i:04}_{c:01}"  # rename
+                    asset.name = f"{i:04}_{c}"  # rename
                     asset.uri = FileURI(path=uri.path / asset.io.create_name(asset))
         return True
 
@@ -107,6 +107,7 @@ class FolderIO(IO):
             asset.name = uri.path.stem
             asset.uri = uri
             asset.io = self.asset_io
+            asset.reset()  # HACK: force a clear out here to read
             if dataset.columns == []:
                 dataset.columns = ["1"]
             dataset.fill_row([asset])

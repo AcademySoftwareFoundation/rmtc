@@ -63,8 +63,9 @@ class Operations:
         self._log = log
         self._broadcaster = Broadcaster()
         self._pipelines = {}
-        for pipeline in pipelines:
-            self._pipelines[pipeline.name] = pipeline
+        if pipelines is not None:
+            for pipeline in pipelines:
+                self._pipelines[pipeline.name] = pipeline
 
     def is_valid(self):
         if self._tracking is None:
@@ -170,7 +171,7 @@ class Operations:
         # TODO: early out and check signatures match
 
         # check if is_compliant
-        artifacts = [model, weights] + inputs + outputs
+        artifacts = [model, weights, inputs, outputs]
         if not solution.is_compliant(artifacts):
             raise rmtc.system.RMTCException(f"Infer rights mismatch: {solution}")
 

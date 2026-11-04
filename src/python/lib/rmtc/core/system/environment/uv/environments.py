@@ -72,16 +72,12 @@ class UV(PackageTracker):
     def __init__(
         self,
         log,
-        path,
+        env_name,
     ):
         super(UV, self).__init__(log)
-        self._env = path
-        if path is None:
+        self._env = env_name
+        if env_name is None:
             raise RMTCException("UV requires a project path to manage")
-
-    @property
-    def env(self):
-        return self._env
 
     def _setup(self):
         subprocess.run(
@@ -142,43 +138,32 @@ class UV(PackageTracker):
             )
         importlib.invalidate_caches()
 
-    def setup(self, env):
+    def setup(self, env_name):
 
         # env is the requirements.txt location
         if self._env is not None:
             return False
 
-        packages = parse_requirements(env)
+        packages = parse_requirements(env_name)
         self.add_packages(packages)
-        self._env = env
+        self._env = env_name
 
         return True
 
-    def teardown(self, env):
+    def teardown(self, env_name):
 
         # env is the requirements.txt location
-        if self._env != env:
+        if self._env != env_name:
             return None
 
-        packages = parse_requirements(env)
+        packages = parse_requirements(env_name)
         self.remove_packages(packages)
-        self._env = env
+        self._env = env_name
 
         return True
 
 
 class UVPip(PackageTracker):
-
-    def __init__(
-        self,
-        log,
-    ):
-        super(UVPip, self).__init__(log)
-        self._env = None
-
-    @property
-    def env(self):
-        return self._env
 
     def setup_packages(self, packages):
         for package in packages:
@@ -229,26 +214,26 @@ class UVPip(PackageTracker):
             )
         importlib.invalidate_caches()
 
-    def setup(self, env):
+    def setup(self, env_name):
 
         # env is the requirements.txt location
         if self._env is not None:
             return False
 
-        packages = parse_requirements(env)
+        packages = parse_requirements(env_name)
         self.add_packages(packages)
-        self._env = env
+        self._env = env_name
 
         return True
 
-    def teardown(self, env):
+    def teardown(self, env_name):
 
         # env is the requirements.txt location
-        if self._env != env:
+        if self._env != env_name:
             return None
 
-        packages = parse_requirements(env)
+        packages = parse_requirements(env_name)
         self.remove_packages(packages)
-        self._env = env
+        self._env = env_name
 
         return True

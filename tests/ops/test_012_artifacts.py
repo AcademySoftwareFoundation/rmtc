@@ -2,11 +2,23 @@
 # Copyright Contributors to the RMTC Project
 
 from itertools import chain
+from unittest.mock import Mock
 
 from rmtc.ops import artifacts
-from rmtc.track.entities import Asset, Right, License, Resource, LicenseStatus
+from rmtc.ops.pipeline import AssetManager
+from rmtc.track.entities import (
+    Asset,
+    Right,
+    License,
+    Resource,
+    LicenseStatus,
+    Run,
+    Solution,
+)
+from rmtc.core.ops.artifacts.torch.models import TorchModel
 from rmtc.core.track.filters.license import RightsFilter
 from rmtc.system.containers import Order
+from rmtc.system.objects import Object
 from rmtc.system import RMTCException
 
 from abstract_rmtc_test import AbstractRMTCTest
@@ -20,14 +32,13 @@ class TestEntities(AbstractRMTCTest):
         inf_obj_id = inference.obj_id
         dataset = rmtc_sys.create_dataset()
         dataset_obj_id = dataset.obj_id
-        inference.inputs = [dataset]
+        inference.inputs = dataset
         rmtc_sys.push()
         rmtc_sys.clear()
         found_inference = rmtc_sys.get_entity(obj_id=inf_obj_id)
         self.assertTrue(found_inference is not None)
-        self.assertTrue(found_inference.inputs is not None)        
-        self.assertTrue(len(found_inference.inputs) > 0)
-        self.assertTrue(found_inference.inputs[0].obj_id == dataset_obj_id)
+        self.assertTrue(found_inference.inputs is not None)
+        self.assertTrue(found_inference.inputs.obj_id == dataset_obj_id)
 
     def test_assign_via_prop(self):
         """Test equiavalence to assignment - specific bugfix"""
@@ -38,15 +49,14 @@ class TestEntities(AbstractRMTCTest):
         dataset_obj_id = dataset.obj_id
         prop = inference.get_property("inputs")
         self.assertTrue(prop is not None)
-        prop.value = [dataset]
+        prop.value = dataset
         self.assertTrue(inference.inputs is not None)
         rmtc_sys.push()
         rmtc_sys.clear()
         found_inference = rmtc_sys.get_entity(obj_id=inf_obj_id)
         self.assertTrue(found_inference is not None)
         self.assertTrue(found_inference.inputs is not None)        
-        self.assertTrue(len(found_inference.inputs) > 0)
-        self.assertTrue(found_inference.inputs[0].obj_id == dataset_obj_id)
+        self.assertTrue(found_inference.inputs.obj_id == dataset_obj_id)
 
     def test_solution_rights(self):
         
@@ -252,12 +262,12 @@ class TestEntities(AbstractRMTCTest):
         count = 10        
         a_assets = [Asset("A")] * count
         b_assets = [Asset("B")] * count
-        c_assets = [Asset("C")] * count          
+        c_assets = [Asset("C")] * count
         dataset_a = artifacts.Dataset(assets=a_assets, columns=["ColA"])
         dataset_b = artifacts.Dataset(assets=b_assets, columns=["ColB"])
         dataset_c = artifacts.Dataset(assets=c_assets, columns=["ColC"])
         datasets = [dataset_a, dataset_b, dataset_c]
-        row = [Asset("X"), Asset("Y"), Asset("Z")]            
+        row = [Asset("X"), Asset("Y"), Asset("Z")]
         for dataset in datasets:
             row = dataset.fill_row(row)
         self.assertTrue(len(row) == 0)
@@ -376,3 +386,60 @@ class TestEntities(AbstractRMTCTest):
         with self.assertRaises(AttributeError):
             dataset.remove_row(row)
 
+
+
+class TestModelResultNaming(AbstractRMTCTest):
+    """Model.create_weights/create_checkpoint name their results from the run"""
+
+    def setUp(self):
+        super(TestModelResultNaming, self).setUp()
+        import torch
+
+        self.manager = AssetManager(readerwriter=Mock(), publisher=Mock(), log=Mock())
+        Object.set_namer(self.manager.default_name)
+        self.model = TorchModel(name="DepthModel", torch_model=torch.nn.Linear(2, 1))
+        self.solution = Solution(name="LensBlur")
+        self.run = Run(name="Training Run", model=self.model)
+        self.run.solution = self.solution
+
+    def test_create_weights_with_run(self):
+        weights = self.model.create_weights(run=self.run)
+        self.assertEqual(weights.parent, self.run)
+        self.assertEqual(weights.model, self.model)
+        self.assertEqual(weights.name, "LensBlur_DepthModel_weights")
+        self.assertIsNotNone(weights.torch_weights)
+
+    def test_create_checkpoint_with_run(self):
+        checkpoint = self.model.create_checkpoint(run=self.run)
+        self.assertEqual(checkpoint.parent, self.run)
+        self.assertEqual(checkpoint.name, "LensBlur_DepthModel_checkpoint")
+        self.assertIsNotNone(checkpoint.torch_weights)
+
+    def test_create_weights_without_run(self):
+        weights = self.model.create_weights()
+        self.assertIsNone(weights.parent)
+        self.assertEqual(weights.name, "DepthModel_weights")
+
+    def test_create_weights_without_run_uses_model_solution(self):
+        self.model.solution = self.solution
+        self.assertEqual(
+            self.model.create_weights().name, "LensBlur_DepthModel_weights"
+        )
+
+    def test_create_weights_explicit_name_kept(self):
+        self.assertEqual(self.model.create_weights(run=self.run, name="x").name, "x")
+        self.assertEqual(
+            self.model.create_checkpoint(run=self.run, name="y").name, "y"
+        )
+
+    def test_create_weights_does_not_set_run_result(self):
+        # linking the run's result is the caller's job
+        self.model.create_weights(run=self.run)
+        self.assertIsNone(self.run.result_weights)
+
+    def test_create_weights_uses_installed_namer(self):
+        Object.set_namer(lambda obj: "site_" + self.manager.default_name(obj))
+        self.assertEqual(
+            self.model.create_weights(run=self.run).name,
+            "site_LensBlur_DepthModel_weights",
+        )

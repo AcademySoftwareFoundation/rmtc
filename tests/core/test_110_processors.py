@@ -26,7 +26,7 @@ def load_test_image(image_name="256x256_rainbow_checkers"):
     env_manager = PackageTracker(log=log)
     publisher = DiskPublisher(log=log, immutable=False)
     readerwriter = DiskReaderWriter(
-        env=env_manager, 
+        env_manager=env_manager, 
         log=log, 
         publisher=publisher
     )
@@ -58,7 +58,7 @@ class TestAssetManagerAccessors(AbstractRMTCTest):
         env_manager = PackageTracker(log=log)
         self.publisher = DiskPublisher(log=log, immutable=False)
         self.readerwriter = DiskReaderWriter(
-            env=env_manager, log=log, publisher=self.publisher
+            env_manager=env_manager, log=log, publisher=self.publisher
         )
         self.asset_manager = AssetManager(
             log=log, publisher=self.publisher, readerwriter=self.readerwriter

@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 
 from rmtc.ops.artifacts import Artifact
 from rmtc.system import RMTCException, Logger, URI
+from rmtc.track.entities import Run, Weights, Checkpoint
 
 
 class BaseReaderWriter(ABC):
@@ -17,12 +18,20 @@ class BaseReaderWriter(ABC):
         return False
 
     @abstractmethod
+    def create_transient_uri(self, name):
+        """
+        Create a new root URI that is temporary
+        """
+        return None
+
+    @abstractmethod
     def create_uri(self, artifact, root):
         """
         Derive the artifact URI beneath the given root URI.
         """
         return None
 
+    @abstractmethod
     def prepare(self, uri):
         """
         Make the URI target writable by creating parent folders.
@@ -56,6 +65,11 @@ class BaseReaderWriter(ABC):
         pass
 
     @abstractmethod
+    def flush(self, artifacts: list[Artifact]) -> bool:
+        """Write out all the artifacts AND reset"""
+        pass
+
+    @abstractmethod
     def reset(self, artifacts: list[Artifact]) -> bool:
         """Reset all the artifacts"""
         pass
@@ -71,15 +85,15 @@ class ReaderWriter(BaseReaderWriter):
     Implements most of the interface but resolve
     """
 
-    def __init__(self, env, log, publisher, immutable=True):
+    def __init__(self, env_manager, log, publisher, immutable=True):
         self._publisher = publisher
         self._log = log
-        self._env = env
+        self._env_manager = env_manager
         self._immutable = immutable
         if publisher is None:
             raise RMTCException("No publisher passed in")
-        if env is None:
-            raise RMTCException("No environment passed in")
+        if env_manager is None:
+            raise RMTCException("No environment manager passed in")
 
     def is_immutable(self):
         return self._immutable
@@ -89,8 +103,8 @@ class ReaderWriter(BaseReaderWriter):
         return self._log
 
     @property
-    def env(self):
-        return self._env
+    def env_manager(self):
+        return self._env_manager
 
     @staticmethod
     def category_folder(entity):
@@ -151,16 +165,22 @@ class ReaderWriter(BaseReaderWriter):
                 raise RMTCException(
                     f"Object {artifact} is not Artifact ({artifact.__class__})"
                 )
-
             if metadata is not None:
                 metadata[artifact.obj_id] = self._publisher.get_metadata(
                     [artifact.uri]
                 )[0]
 
+            if artifact.is_ephemeral():
+                self._log.debug(f"Skipping ephemeral artifact {artifact}")
+                continue
+
             # already read
             if artifact.is_valid():
                 self._log.debug(f"Skipping valid artifact {artifact}")
                 continue
+
+            # log
+            self._log.debug(f"Loading artifact: {artifact}")
 
             # get IO
             io = artifact.get_io()
@@ -168,7 +188,9 @@ class ReaderWriter(BaseReaderWriter):
                 raise RMTCException(f"Artifact missing IO {artifact}")
 
             # setup packages
-            self._env.add_packages(artifact.get_dependencies())
+            if len(artifact.get_dependencies()) > 0:
+                self._log.debug(f"Adding dependencies: {artifact.get_dependencies()}")
+            self.env_manager.add_packages(artifact.get_dependencies())
 
             # resolve
             uri = self._publisher.resolve([artifact.uri])[0]
@@ -211,11 +233,10 @@ class ReaderWriter(BaseReaderWriter):
 
             # resolve and enforce - URIs should exist before write
             uri = self._publisher.resolve([artifact.uri])[0]
-            if uri is None or not self.is_uri_supported(uri):
+            if not io.is_uri_supported(uri):
                 raise RMTCException(
-                    f"Unsupported URI 'artifact.uri' on {artifact} during write"
+                    f"Unsupported URI '{uri}' on {artifact} during write"
                 )
-
             if self.exists([uri]):
                 if self.is_immutable():
                     raise RMTCException(f"URI exists '{uri}' during immutable write")
@@ -233,7 +254,11 @@ class ReaderWriter(BaseReaderWriter):
 
         for artifact in artifacts:
             artifact.reset()
-            self._env.remove_packages(artifact.get_dependencies())
+            self._env_manager.remove_packages(artifact.get_dependencies())
+
+    def flush(self, artifacts):
+        self.write(artifacts)
+        self.reset(artifacts)
 
 
 class Builder(ABC):
@@ -323,8 +348,14 @@ class AssetManager:
     def is_supported(self, artifact):
         return self._readerwriter.is_uri_supported(artifact.uri)
 
+    def create_transient_uri(self, name=None):
+        return self._readerwriter.create_transient_uri(name=name)
+
     def create_uri(self, artifact, root=None, **kwargs):
-        return self._readerwriter.create_uri(artifact, root)
+        return self._readerwriter.create_uri(artifact, root, **kwargs)
+
+    def delete_uri(self, uri):
+        return self._readerwriter.delete_uri(uri=uri)
 
     def identity_mode(self, mode):
         return self._readerwriter.set_identity_mode(mode)
@@ -378,3 +409,41 @@ class AssetManager:
                 f"Publisher '{self._publisher}' does not support reserve()"
             )
         return self._publisher.reserve(path)
+
+    def result_sources(self, entity):
+        """
+        The (solution, model) a weights/checkpoint was produced for, from the
+        most specific source.
+        """
+        run = entity.parent if isinstance(entity.parent, Run) else None
+        # Use model directly if it exists
+        model = entity.model
+        # Fallback to run's model if it exists
+        if model is None and run is not None:
+            model = run.model
+        # Use the solution directly if it exists
+        solution = entity.solution
+        # Fallback to the run then model's solution if they exist
+        if solution is None and run is not None:
+            solution = run.solution
+        if solution is None and model is not None:
+            solution = model.solution
+        return solution, model
+
+    def default_name(self, entity):
+        """
+        Name an entity that has no user provided name.
+        System installs this as a process-wide namer on Object.
+        Weights and checkpoints are named for what they are trained for:
+        {solution}_{model}_{category}, leaving out unknown parts.
+        Facilities can override this to encode their own naming conventions
+        """
+        if not isinstance(entity, (Weights, Checkpoint)):
+            return entity.builtin_name()
+
+        solution, model = self.result_sources(entity)
+
+        parts = [part.name for part in (solution, model) if part is not None]
+        if not parts:
+            return entity.builtin_name()
+        return "_".join(parts + [entity.category().lower()])

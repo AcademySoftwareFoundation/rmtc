@@ -20,6 +20,8 @@ class TorchCheckpoint(Checkpoint):
 
     def __init__(
         self,
+        name=None,
+        version=None,
         uri=URI(),
         context=None,
         model=None,
@@ -32,6 +34,8 @@ class TorchCheckpoint(Checkpoint):
     ):
         """Initialize TorchCheckpoint with PyTorch-specific reader/writer."""
         super(TorchCheckpoint, self).__init__(
+            name=name,
+            version=version,
             uri=uri,
             context=context,
             model=model,

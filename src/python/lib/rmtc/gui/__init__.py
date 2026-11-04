@@ -31,7 +31,7 @@ class GUI:
 
     def __init__(
         self,
-        rmtc_sys,
+        rmtc_system,
         app=None,
         provenance_widget=None,
         ingestion_widget=None,
@@ -43,23 +43,23 @@ class GUI:
         viewer_widget=None,
     ):
         self._app = app or QtWidgets.QApplication([])
-        self._sys = rmtc_sys
+        self._sys = rmtc_system
 
         # construct the items
-        provenance = provenance_widget or SignalBox(rmtc_sys)
-        ingestion = ingestion_widget or Junction(rmtc_sys)
-        traintrack = traintrack_widget or TrainTrack(rmtc_sys)
-        toolbar = toolbar_widget or Toolbar(rmtc_sys)
-        publisher = publisher_widget or Publisher(rmtc_sys)
-        scheduler = scheduler_widget or Scheduler(rmtc_sys)
-        properties = property_widget or ObjectPropertyEditor(rmtc_sys)
-        viewer = viewer_widget or DatasetViewer(rmtc_sys)
-        log = Log(log=rmtc_sys.log)
+        provenance = provenance_widget or SignalBox(rmtc_system)
+        ingestion = ingestion_widget or Junction(rmtc_system)
+        traintrack = traintrack_widget or TrainTrack(rmtc_system)
+        toolbar = toolbar_widget or Toolbar(rmtc_system)
+        publisher = publisher_widget or Publisher(rmtc_system)
+        scheduler = scheduler_widget or Scheduler(rmtc_system)
+        properties = property_widget or ObjectPropertyEditor(rmtc_system)
+        viewer = viewer_widget or DatasetViewer(rmtc_system)
+        log = Log(log=rmtc_system.log)
 
         # link events
         ingestion.train_request.connect(lambda run: scheduler.train(run))
         ingestion.infer_request.connect(lambda inference: scheduler.infer(inference))
-        ingestion.build_request.connect(lambda artifacts: rmtc_sys.build(artifacts))
+        ingestion.build_request.connect(lambda artifacts: rmtc_system.build(artifacts))
         ingestion.publish_request.connect(
             lambda artifacts: publisher.publish(artifacts)
         )
@@ -93,7 +93,7 @@ class GUI:
 
         # create the main window
         self._main_window = QtWidgets.QMainWindow()
-        self._main_window.setWindowTitle(f"RMTC ({rmtc_sys.mode})")
+        self._main_window.setWindowTitle(f"RMTC ({rmtc_system.mode})")
         self._main_window.setWindowIcon(QtGui.QIcon(get_icon_path("rmtc")))
         pos = QtGui.QCursor.pos()
         self._main_window.setGeometry(QtCore.QRect(pos.x(), pos.y(), 1280, 720))

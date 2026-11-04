@@ -22,7 +22,9 @@ For file-path and class-level detail behind these notes, see the companion [Arch
 * [GUI](gui.md) - the shared System-backed Qt tooling: property editor, Signal Box, Junction, Conductor and Train Track 
 * [Scheduler](scheduler.md) - the shared Scheduler/Task/Job/Executor/Tracker abstractions behind Train's run scheduling 
 * [Environment](environment.md) - the placeholder module for package & environment management 
-* [Interface](interface.md) - the Serializer/Client/Server abstractions for bridging two Systems over REST 
+* [Interface](interface.md) - the Client/Server abstractions and REST client for bridging two Systems over REST 
+* [Server](server.md) - the Flask REST server: serialization, serving, environment variables, versioning and routes
+* [Web UI](webui.md) - the browser UI for the REST API: stack, structure, development and hosting
 
 ---
 SPDX-License-Identifier: Apache-2.0 - Copyright Contributors to the RMTC Project

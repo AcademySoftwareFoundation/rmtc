@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+[build-system]
+requires = [
+    "setuptools>=83.0.0; python_version >= '3.10'",
+    "setuptools>=69.0,<83.0.0; python_version < '3.10'",
+    "setuptools-scm>=8",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rmtc-server"
+dynamic = ["version"]
+description = "The Rongotai Model Train Club - REST server"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+
+dependencies = [
+    "rmtc", #TODO: Add ">=X.Y" after versioned release
+    "flask>=3.1.0",
+    "gunicorn",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rmtc_server*"]
+
+[tool.setuptools_scm]
+root = "../../.."
+tag_regex = "^rmtc-server-v(?P<version>.+)$"
+
+[tool.setuptools_scm.scm.git]
+describe_command = "git describe --dirty --tags --long --match 'rmtc-server-v*'"

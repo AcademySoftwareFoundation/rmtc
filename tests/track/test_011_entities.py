@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Contributors to the RMTC Project
 
+from unittest.mock import Mock
+import time
+
 from rmtc.system import (
     URI, 
     Type, 
@@ -10,11 +13,12 @@ from rmtc.system import (
     Logger,
     Factory,
 )
-from rmtc.system.objects import Data
+from rmtc.system.objects import Data, Object
 from rmtc.track.store import Entity
+from rmtc.ops.pipeline import AssetManager
 from rmtc.track.entities import (
+    Checkpoint,
     Weights,
-    Inference,
     Model,
     Asset,
     Solution,
@@ -23,9 +27,7 @@ from rmtc.track.entities import (
     Dataset,
     Resource,
     Party,
-    Jurisdiction,
 )
-from rmtc.ops.assets import Image, Mesh
 
 from abstract_rmtc_test import AbstractRMTCTest
 
@@ -72,7 +74,7 @@ class MockFactory(Factory):
         dependencies,
         deprecated=False,
         message="",
-        abstract=False,     
+        abstract=False,
     ):
         pass
 
@@ -128,8 +130,9 @@ class TestEntities(AbstractRMTCTest):
         rmtc_sys.push()
         rmtc_sys.clear()
         entity = rmtc_sys.get_entities(name="Test Entity")[0]
-        self.assertTrue(entity.updated_at > updated_at)
+        self.assertTrue(entity.updated_at == updated_at)
         updated_at = entity.updated_at
+        time.sleep(0.01)        
         entity.test = 200
         self.assertTrue(entity.updated_at > updated_at)
         rmtc_sys.push()
@@ -203,7 +206,7 @@ class TestEntities(AbstractRMTCTest):
         collected_names = []
         for row in dataset_a:
             collected_names.append(row[0].name)
-        self.assertEqual(names, collected_names)            
+        self.assertEqual(names, collected_names)
 
     def test_uniqueness(self):
         """Does an entity exist uniquely in the system"""
@@ -298,7 +301,7 @@ class TestEntities(AbstractRMTCTest):
         entities = [
             rmtc_sys.create_resource(name="A"),
             rmtc_sys.create_resource(name="B"),
-            rmtc_sys.create_resource(name="C"),                       
+            rmtc_sys.create_resource(name="C"),
         ]
         entity_ids = [entity.obj_id for entity in entities]
         rmtc_sys.push()
@@ -330,11 +333,11 @@ class TestEntities(AbstractRMTCTest):
             result.append(rmtc_sys.create_asset())
         outputs = rmtc_sys.create_dataset(assets=result)
         inference = rmtc_sys.create_inference(
-            inputs=[inputs],
-            outputs=[outputs],
+            inputs=inputs,
+            outputs=outputs,
         )
-        self.assertEqual(len(inference.outputs[0].assets), 3)
-        self.assertEqual(inference.outputs[0].assets, result)
+        self.assertEqual(len(inference.outputs.assets), 3)
+        self.assertEqual(inference.outputs.assets, result)
         rmtc_sys.push()
         rmtc_sys.clear()
         self.assertEqual(len(rmtc_sys.objects.get()), 0)
@@ -376,8 +379,8 @@ class TestEntities(AbstractRMTCTest):
         ])
 
         inference = rmtc_sys.create_inference(
-            inputs=[inputs],
-            outputs=[outputs],
+            inputs=inputs,
+            outputs=outputs,
             weights=weights,
             model=model,
         )
@@ -494,4 +497,155 @@ class TestEntities(AbstractRMTCTest):
         self.assertEqual(run.result_checkpoints[0].name, "Kept Checkpoint")
         self.assertEqual(
             len(sys.get_entities(name="Removed Checkpoint", categories=["Checkpoint"])), 0
+        )
+
+
+class TestResultNaming(AbstractRMTCTest):
+    """
+    Core naming convention for run outputs, on the base AssetManager:
+    {solution}_{model}_{category}, leaving out whatever isn't known. The
+    solution comes from the most specific source - the artifact itself, then
+    its run, then its model. Entities themselves only know their class name.
+    """
+
+    def setUp(self):
+        super(TestResultNaming, self).setUp()
+        self.manager = AssetManager(readerwriter=Mock(), publisher=Mock(), log=Mock())
+        Object.set_namer(self.manager.default_name)
+        self.solution = Solution(name="LensBlur")
+        self.model = Model(name="DepthModel")
+        self.run = Run(name="Training Run", model=self.model)
+        self.run.solution = self.solution
+
+    # result_sources
+
+    def test_sources_artifact_solution_wins_over_run(self):
+        weights = Weights()
+        weights.parent = self.run
+        weights.solution = Solution(name="DepthEstimation")
+        solution, model = self.manager.result_sources(weights)
+        self.assertEqual(solution.name, "DepthEstimation")
+        self.assertEqual(model, self.model)
+
+    def test_sources_run_solution_wins_over_model(self):
+        self.model.solution = Solution(name="DepthEstimation")
+        weights = Weights()
+        weights.parent = self.run
+        self.assertEqual(self.manager.result_sources(weights)[0], self.solution)
+
+    def test_sources_artifact_model_wins_over_run_model(self):
+        other_model = Model(name="OtherModel")
+        weights = Weights(model=other_model)
+        weights.parent = self.run
+        self.assertEqual(self.manager.result_sources(weights)[1], other_model)
+
+    def test_sources_non_run_parent_ignored(self):
+        weights = Weights()
+        weights.parent = self.solution
+        self.assertEqual(self.manager.result_sources(weights), (None, None))
+
+    # AssetManager.default_name
+
+    def test_default_name_full(self):
+        weights = Weights()
+        weights.parent = self.run
+        self.assertEqual(
+            self.manager.default_name(weights), "LensBlur_DepthModel_weights"
+        )
+
+    def test_default_name_checkpoint(self):
+        checkpoint = Checkpoint()
+        checkpoint.parent = self.run
+        self.assertEqual(
+            self.manager.default_name(checkpoint), "LensBlur_DepthModel_checkpoint"
+        )
+
+    def test_default_name_model_only(self):
+        weights = Weights(model=self.model)
+        self.assertEqual(self.manager.default_name(weights), "DepthModel_weights")
+
+    def test_default_name_solution_only(self):
+        weights = Weights()
+        weights.solution = self.solution
+        self.assertEqual(self.manager.default_name(weights), "LensBlur_weights")
+
+    def test_default_name_nothing_known(self):
+        self.assertEqual(self.manager.default_name(Weights()), "Weights")
+        self.assertEqual(self.manager.default_name(Checkpoint()), "Checkpoint")
+
+    def test_default_name_other_entities_use_builtin_name(self):
+        self.assertEqual(self.manager.default_name(self.model), "Model")
+        self.assertEqual(self.manager.default_name(self.run), "Run")
+
+    def test_builtin_name_is_class_name(self):
+        weights = Weights()
+        weights.parent = self.run
+        self.assertEqual(weights.builtin_name(), "Weights")
+
+    # Run.create_*
+
+    def test_run_create_weights_default_name(self):
+        weights = self.run.create_weights()
+        self.assertEqual(weights.name, "LensBlur_DepthModel_weights")
+
+    def test_run_create_checkpoint_default_name(self):
+        checkpoint = self.run.create_checkpoint()
+        self.assertEqual(checkpoint.name, "LensBlur_DepthModel_checkpoint")
+
+    def test_run_create_weights_explicit_name_kept(self):
+        weights = self.run.create_weights(name="x")
+        self.assertEqual(weights.name, "x")
+        checkpoint = self.run.create_checkpoint(name="y")
+        self.assertEqual(checkpoint.name, "y")
+
+    def test_run_create_weights_uses_installed_namer(self):
+        Object.set_namer(lambda obj: "site_" + self.manager.default_name(obj))
+        weights = self.run.create_weights()
+        self.assertEqual(weights.name, "site_LensBlur_DepthModel_weights")
+
+    def test_run_create_weights_without_namer_uses_builtin_name(self):
+        Object.set_namer(None)
+        self.assertEqual(self.run.create_weights().name, "Weights")
+
+    def test_run_without_links(self):
+        weights = Run(name="Bare Run").create_weights()
+        self.assertEqual(weights.name, "Weights")
+
+    # Tracking.create_* through System
+
+    def test_system_create_weights_with_run(self):
+        rmtc_sys = self.get_system()
+        weights = rmtc_sys.create_weights(run=self.run)
+        self.assertEqual(weights.name, "LensBlur_DepthModel_weights")
+
+    def test_system_create_weights_without_run(self):
+        rmtc_sys = self.get_system()
+        weights = rmtc_sys.create_weights(model=self.model)
+        self.assertEqual(weights.name, "DepthModel_weights")
+        checkpoint = rmtc_sys.create_checkpoint(model=self.model)
+        self.assertEqual(checkpoint.name, "DepthModel_checkpoint")
+
+    def test_system_create_weights_explicit_name_kept(self):
+        rmtc_sys = self.get_system()
+        self.assertEqual(rmtc_sys.create_weights(name="x").name, "x")
+        self.assertEqual(rmtc_sys.create_weights(run=self.run, name="y").name, "y")
+
+    def test_system_default_name_delegates_to_asset_manager(self):
+        rmtc_sys = self.get_system()
+        weights = Weights()
+        weights.parent = self.run
+        self.assertEqual(
+            rmtc_sys.default_name(weights),
+            rmtc_sys.ops.asset_manager.default_name(weights),
+        )
+        self.assertEqual(rmtc_sys.default_name(weights), "LensBlur_DepthModel_weights")
+
+    def test_system_installs_asset_manager_namer(self):
+        Object.set_namer(None)
+        rmtc_sys = self.get_system()
+        weights = Weights()
+        weights.parent = self.run
+        self.assertEqual(weights.default_name(), "LensBlur_DepthModel_weights")
+        self.assertEqual(
+            Object._namer.__self__, rmtc_sys.ops.asset_manager
         )

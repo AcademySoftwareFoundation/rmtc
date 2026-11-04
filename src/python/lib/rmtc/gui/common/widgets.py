@@ -4,11 +4,9 @@
 from Qt import QtWidgets, QtGui, QtCore
 from rmtc.gui.common.properties import ObjectProperties
 from rmtc.gui.common import get_icon_path
-from rmtc.system import LogMessage, RMTCException
+from rmtc.system import LogMessage, RMTCException, TypeName
 from rmtc.system.objects import Object
 from rmtc.track.store import EntityMessage
-from rmtc.core.ops.infer.local.schedulers import LocalInferScheduler
-from rmtc.core.ops.train.local.schedulers import LocalTrainScheduler
 
 
 class Log(QtWidgets.QWidget):
@@ -42,27 +40,69 @@ class Log(QtWidgets.QWidget):
         )
 
 
+class ObjectType(QtWidgets.QWidget):
+    """Allow creation of an object from a category and inspect"""
+
+    changed = QtCore.Signal(Object)
+
+    def __init__(self, factory, category, parent=None):
+        super(ObjectType, self).__init__(parent=parent)
+        self._factory = factory
+        type_names = factory.get_type_names(category)
+        completer = QtWidgets.QCompleter([str(item) for item in type_names])
+        completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        completer.setFilterMode(QtCore.Qt.MatchContains)
+        self._type_select = QtWidgets.QLineEdit(parent=self)
+        self._type_select.setCompleter(completer)
+        self._type_select.setPlaceholderText(f"Enter type of {category}")
+        self._type_select.returnPressed.connect(self.change_type)
+        self._type_name = None
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._type_select)
+        self.setLayout(layout)
+
+    @property
+    def type_name(self):
+        return self._type_name
+
+    def change_type(self):
+        type_name = TypeName(self._type_select.text())
+        type_info = self._factory.get_type_info(type_name)
+        self._type_name = None
+        if type_info is not None:
+            self._type_name = type_name.abridged()
+
+
 class Scheduler(QtWidgets.QWidget):
 
     def __init__(self, rmtc_system, parent=None):
         super(Scheduler, self).__init__(parent=parent)
         self._system = rmtc_system
+        self._scheduler_type = ObjectType(rmtc_system.factory, "Scheduler", parent=self)
+        layout = QtWidgets.QFormLayout()
+        layout.addRow("Scheduler", self._scheduler_type)
+        self.setLayout(layout)
 
     def train(self, run):
 
+        if self._scheduler_type.type_name is None:
+            return
+
         # use local if empty
-        scheduler = LocalTrainScheduler(
-            rmtc_system=self._system,
-            tracker=self._system.ops.tracker,
-            asset_manager=self._system.ops.asset_manager,
-            env_manager=self._system.ops.env_manager,
-            run=run,
+        scheduler = self._system.create_scheduler(
+            self._scheduler_type.type_name,
+            task=run,
         )
 
         # TODO : make this work async
         scheduler()
 
     def infer(self, inference):
+        """When the user clicks accept, create and submit the inferece."""
+
+        if self._scheduler_type.type_name is None:
+            return
 
         if inference.model is None:
             if inference.solution is None:
@@ -75,13 +115,9 @@ class Scheduler(QtWidgets.QWidget):
         if inference.model is None:
             raise RMTCException("No model defined")
 
-        # use local if empty
-        scheduler = LocalInferScheduler(
-            rmtc_system=self._system,
-            tracker=self._system.ops.tracker,
-            asset_manager=self._system.ops.asset_manager,
-            env_manager=self._system.ops.env_manager,
-            inference=inference,
+        scheduler = self._system.create_scheduler(
+            self._scheduler_type.type_name,
+            task=inference,
         )
 
         # TODO : make this work async
@@ -377,11 +413,11 @@ class PublishOptions(QtWidgets.QWidget):
 
 class ObjectPropertyEditor(QtWidgets.QWidget):
 
-    def __init__(self, rmtc_sys, obj=None):
+    def __init__(self, rmtc_system, obj=None):
         super(ObjectPropertyEditor, self).__init__()
 
-        self._system = rmtc_sys
-        self._factory = rmtc_sys.factory
+        self._system = rmtc_system
+        self._factory = rmtc_system.factory
         self._obj = None
         self._properties = ObjectProperties(self._factory, parent=self)
         self._name = QtWidgets.QLineEdit()

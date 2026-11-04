@@ -9,6 +9,7 @@ from rmtc.system import Config
 from rmtc.ops import artifacts
 from rmtc.ops import assets
 from rmtc.core.ops.infer.simple import inferers 
+from rmtc.core.ops.scheduling.local import schedulers
 
 import rmtc.core.ops.io.oiio.image as image_io
 import rmtc.core.ops.io.filesystem.folders as folder_io
@@ -61,17 +62,18 @@ inference           = rmtc_sys.infer(
     ),    
     outputs         = artifacts.Dataset(
         columns     = ["Mask"],
-        uri         = FileURI(path=args.outputs_path),         
+        uri         = FileURI(path=args.outputs_path),
         io          = folder_io.FolderIO(
             asset_type=assets.Image,
             asset_io=image_io.EXR(),
         )
     ),
     inferer         = inferers.DatasetInferer(),
+    scheduler       = schedulers.LocalScheduler(rmtc_system=rmtc_sys),
 )
 
 # we ran the inference - write it out
-rmtc_sys.write(inference.outputs)
+rmtc_sys.write([inference.outputs])
 
 # close the session
 rmtc_sys            .push()

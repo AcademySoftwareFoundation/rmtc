@@ -194,15 +194,17 @@ class CypherConnection(Connection):
             for result in results:
                 obj_id = result["id"]
                 type_name = TypeName(result["type_name"])
-                entity = self.store.factory.create(type_name)
-                if entity is None:
+                entity = None
+                try:
+                    entity = self.store.factory.create(type_name)
+                except RMTCException:
                     self.store.log.warning(
                         f"Cannot create instance of {type_name} for {obj_id}, using proxy entity"
                     )
+                if entity is None:
                     entity = Proxy(type_name.category)
                     self.store.add_entity(obj_id, entity)
                     self._sync_properties(entity, required_only=True)
-                    entity.set_immutable(True)
                 else:
                     entity.reset_create()
                     entity.reset_update()
@@ -210,6 +212,10 @@ class CypherConnection(Connection):
                     self.store.add_entity(obj_id, entity)
                     self._sync_properties(entity, required_only=True)
                     entity.mark_for_sync()
+                timestamp = result["updated_at"]
+                if self._use_dt:
+                    timestamp = timestamp.isoformat()
+                entity.updated_at = Datetime(timestamp)
                 entities.append(entity)
         return entities
 
@@ -394,10 +400,15 @@ class CypherConnection(Connection):
             # update
             for other in prop.array_value:
 
+                # empty
                 if other is None:
                     self.store.log.warning(
                         f"None element inside array property {entity.name}.{prop_name}"
                     )
+                    continue
+
+                # not tracked in the DB
+                if not other.is_tracked():
                     continue
 
                 # record which we have visited
@@ -407,7 +418,7 @@ class CypherConnection(Connection):
                 query = f"""
                     MATCH (a:{entity.class_category}) 
                     WHERE a._obj_id=$a_obj_id AND a._store=$store
-                    MATCH (b) WHERE b._obj_id=$b_obj_id AND b._store=$store
+                    MATCH (b:{other.class_category}) WHERE b._obj_id=$b_obj_id AND b._store=$store
                 """
                 if prop.is_inputoutput():
                     self.store.log.warning(

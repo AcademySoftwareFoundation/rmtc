@@ -51,37 +51,15 @@ class LogicFilter(Filter):
     def __call__(self, entities):
 
         if self.operator == Operator.AND:
-            for f in self.filters:
-                if not f(entities):
-                    return False
-        elif self.operator == Operator.NAND:
-            counter = 0
-            for f in self.filters:
-                if not f(entities):
-                    counter += 1
-                return counter == len(self.filters)
-        elif self.operator == Operator.OR:
-            for f in self.filters:
-                if f(entities):
-                    return True
-        elif self.operator == Operator.NOR:
-            for f in self.filters:
-                if f(entities):
-                    return False
-        elif self.operator == Operator.XOR:
-            counter = 0
-            for f in self.filters:
-                if f(entities):
-                    counter += 1
-            return counter == 1
-        elif self.operator == Operator.XNOR:
-            last = None
-            for f in self.filters:
-                if last is not None:
-                    if last != f(entities):
-                        return False
-                else:
-                    last = f(entities)
-            return True
-
+            return all(f(entities) for f in self.filters)
+        if self.operator == Operator.NAND:
+            return not all(f(entities) for f in self.filters)
+        if self.operator == Operator.OR:
+            return any(f(entities) for f in self.filters)
+        if self.operator == Operator.NOR:
+            return not any(f(entities) for f in self.filters)
+        if self.operator == Operator.XOR:
+            return sum(1 for f in self.filters if f(entities)) == 1
+        if self.operator == Operator.XNOR:
+            return len({bool(f(entities)) for f in self.filters}) <= 1
         return False

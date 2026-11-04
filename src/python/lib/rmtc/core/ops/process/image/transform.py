@@ -166,10 +166,19 @@ class Pad(Process):
         outputs = []
         for img_tensor in tensors:
             h, w, _ = img_tensor.shape
-            if self.width <= w and self.height <= h:
-                continue
-            image = Crop(width=self.width, height=self.height).run([img_tensor])
-            outputs.append(image)
+            pad_h = max(self.height - h, 0)
+            pad_w = max(self.width - w, 0)
+            tensor = np.pad(
+                img_tensor,
+                pad_width=(
+                    (pad_h // 2, pad_h - pad_h // 2),
+                    (pad_w // 2, pad_w - pad_w // 2),
+                    (0, 0),  # channels ignore
+                ),
+                mode="constant",
+                constant_values=0,  # black
+            )
+            outputs.append(tensor)
         return outputs
 
     def run_inverse(self, tensors: tuple[Array]) -> tuple[Array]:
@@ -193,16 +202,16 @@ class Align(Process):
     def run(self, tensors: tuple[Array]) -> tuple[Array]:
         output = []
         for tensor in tensors:
-            w, h, _ = tensor.shape
-            padded_width = math.ceil(w / self.width_boundary) * self.width_boundary
+            h, w, _ = tensor.shape
             padded_height = math.ceil(h / self.height_boundary) * self.height_boundary
-            x_padding = (padded_width - w) // 2
-            y_padding = (padded_height - h) // 2
+            padded_width = math.ceil(w / self.width_boundary) * self.width_boundary
+            pad_h = padded_height - h
+            pad_w = padded_width - w
             tensor = np.pad(
                 tensor,
                 pad_width=(
-                    (x_padding, x_padding),
-                    (y_padding, y_padding),
+                    (pad_h // 2, pad_h - pad_h // 2),
+                    (pad_w // 2, pad_w - pad_w // 2),
                     (0, 0),  # channels ignore
                 ),
                 mode="constant",
@@ -262,15 +271,14 @@ class Scale(Process):
                 sx = random.uniform(min_x, max_x)
                 sy = random.uniform(min_y, max_y)
 
-            h, w, c = img_tensor.shape
-
             # Scale the image
             scaled_img = cv2.resize(
-                img_tensor, (w, h), fx=sx, fy=sy, interpolation=cv2.INTER_AREA
+                img_tensor, None, fx=sx, fy=sy, interpolation=cv2.INTER_AREA
             )
 
+            # Add channels back for single-channel images
+            _, _, c = img_tensor.shape
             if c == 1:
-                # Add channels back for single-channel images
                 scaled_img = scaled_img[:, :, np.newaxis]
 
             scaled_tensors.append(scaled_img)
@@ -389,7 +397,7 @@ class Resize(Process):
     def run(self, tensors: tuple[Array]) -> tuple[Array]:
         resized_tensors = []
         for img_tensor in tensors:
-            resized_tensors.append(cv2.resize(img_tensor, (self.height, self.width)))
+            resized_tensors.append(cv2.resize(img_tensor, (self.width, self.height)))
         return resized_tensors
 
     def run_inverse(self, tensors: tuple[Array]) -> tuple[Array]:
@@ -420,15 +428,14 @@ class Crop(Process):
 
     def run(self, tensors: tuple[Array]) -> tuple[Array]:
         image_tensor = tensors[0]
-        image_width = image_tensor.shape[0]
-        image_height = image_tensor.shape[1]
-        x = image_width // 2
-        y = image_height // 2
+        h, w, _ = image_tensor.shape
+        x = w // 2
+        y = h // 2
         x_start = x - (self.width // 2)
         x_end = x + (self.width // 2)
         y_start = y - (self.height // 2)
         y_end = y + (self.height // 2)
-        cropped = image_tensor[x_start:x_end, y_start:y_end]
+        cropped = image_tensor[y_start:y_end, x_start:x_end]
         return (cropped,)
 
     def run_inverse(self, tensors: tuple[Array]) -> tuple[Array]:

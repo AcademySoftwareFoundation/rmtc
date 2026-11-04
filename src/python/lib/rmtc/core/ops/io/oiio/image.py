@@ -168,13 +168,10 @@ class EXR(IO):
         return found_index
 
 
-class JPG(IO):
+class OIIOBase(IO):
     """
     Reader/writer for JPG image files.
     """
-
-    def create_name(self, artifact):
-        return str(Path(artifact.name + ".jpg"))
 
     def get_scheme(self):
         return "file"
@@ -182,23 +179,10 @@ class JPG(IO):
     def get_artifact_type(self):
         return Image
 
-    def is_uri_supported(self, uri):
-        """Check if URI points to a valid .jpg file."""
-        if uri.scheme == "file":
-            return uri.path.suffix.lower() == ".jpg"
-        return False
-
     def read(self, uri, artifact, asset_manager):
-        """Load EXR image from file into artifact tensor.
-        Reads the EXR file using OIIO, converts from BGR to RGB color space,
-        and ensures 4-channel RGBA format by adding an opaque alpha channel
-        if the image has fewer than 4 channels.
-        """
         buffer = oiio.ImageBuf(str(uri.path))
         if buffer.has_error:
-            raise RMTCException(
-                f"Failed to read JPG file: {uri.path}\n{buffer.geterror()}"
-            )
+            raise RMTCException(f"Failed to read file: {uri.path}\n{buffer.geterror()}")
         spec = buffer.spec()
         tensor = buffer.get_pixels(oiio.FLOAT)
         if len(tensor.shape) == 1:
@@ -207,10 +191,13 @@ class JPG(IO):
         if c < 4:
             alpha = np.ones((h, w, 1))
             tensor = np.concatenate((tensor, alpha), axis=2)
+        tensor = np.ascontiguousarray(tensor, dtype=np.float32)
         artifact.tensors = (tensor,)
+        artifact.colorspace = spec.getattribute(OIIO_COLORSPACE_ATTR)
+        artifact.data_type = OIIO_FORMATS.get(spec.format.basetype)
+        artifact.layer_name = spec.getattribute(OIIO_SUBIMAGE_NAME_ATTR)
 
     def write(self, uri, artifact, asset_manager):
-        """Save artifact tensor as JPG image file using OIIO"""
         tensor = np.ascontiguousarray(artifact.tensors[0], dtype=np.float32)
         h, w, c = tensor.shape
         spec = oiio.ImageSpec(w, h, c, oiio.FLOAT)
@@ -229,3 +216,31 @@ class JPG(IO):
             raise RMTCException(f"Global OIIO error\n{oiio.geterror()}")
         if buffer.has_error:
             raise RMTCException(f"Buffer has error post write\n{buffer.geterror()}")
+
+
+class JPG(OIIOBase):
+    """
+    Reader/writer for JPG image files.
+    """
+
+    def create_name(self, artifact):
+        return str(Path(artifact.name + ".jpg"))
+
+    def is_uri_supported(self, uri):
+        if uri.scheme == "file":
+            return uri.path.suffix.lower() in [".jpg", ".jpeg"]
+        return False
+
+
+class PNG(OIIOBase):
+    """
+    Reader/writer for PNG image files.
+    """
+
+    def create_name(self, artifact):
+        return str(Path(artifact.name + ".png"))
+
+    def is_uri_supported(self, uri):
+        if uri.scheme == "file":
+            return uri.path.suffix.lower() == ".png"
+        return False

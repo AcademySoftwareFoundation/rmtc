@@ -65,7 +65,7 @@ class Session(Entity):
         self,
         name=None,
         inferences=None,
-        env=None,
+        packages=None,
         uri=None,
         identifier=None,
         timestamp=None,
@@ -74,7 +74,9 @@ class Session(Entity):
         self.add_property(
             "inferences", [Inference], inferences, member=False, direction=OUT
         )
-        self.add_property("env", Environment, env, member=False, direction=OUT)
+        self.add_property(
+            "packages", Environment, packages, member=False, direction=OUT
+        )
         self.add_property("uri", URI, uri, direction=OUT)
         self.add_property("identifier", str, identifier)
         self.add_property("timestamp", Datetime, timestamp)
@@ -299,6 +301,7 @@ class Solution(Entity):
             object_type = Inference
         inference = object_type(**kwargs)
         inference.parent = self
+        inference.solution = self
         return inference
 
     @classmethod
@@ -330,6 +333,7 @@ class Run(Entity):
         validation=None,
         test=None,
         checkpoint=None,
+        result_model=None,
         result_weights=None,
         result_checkpoints=None,
         solution=None,
@@ -371,15 +375,19 @@ class Run(Entity):
         self.add_property(
             "result_weights", Weights, result_weights, member=True, direction=OUT
         )
+        self.add_property(
+            "result_model", Model, result_model, member=True, direction=OUT
+        )
 
     def create_weights(self, object_type=None, **kwargs):
         """Construct weights, add it to the run and return"""
         if object_type is None:
             object_type = Weights
         weights = object_type(**kwargs)
-        weights.name = "weights"
         weights.parent = self
         weights.metric = self.metric
+        if kwargs.get("name") is None:
+            weights.name = weights.default_name()
         self.result_weights = weights
         return weights
 
@@ -388,10 +396,11 @@ class Run(Entity):
         if object_type is None:
             object_type = Checkpoint
         checkpoint = object_type(**kwargs)
-        checkpoint.name = "checkpoint"
         checkpoint.parent = self
         checkpoint.epoch = self.epochs
         checkpoint.metric = self.metric
+        if kwargs.get("name") is None:
+            checkpoint.name = checkpoint.default_name()
         self.add_result_checkpoints([checkpoint])
         return checkpoint
 
@@ -663,13 +672,13 @@ class Inference(Entity):
 
         # references
         self.add_property("model", Model, model, member=False, direction=IN)
-        self.add_property("inputs", [Dataset], inputs, member=False, direction=IN)
+        self.add_property("inputs", Dataset, inputs, member=False, direction=IN)
         self.add_property("weights", Weights, weights, member=False, direction=IN)
         self.add_property("solution", Solution, solution, member=False, direction=IN)
 
         # members
         self.add_property("metric", float, metric, direction=OUT)
-        self.add_property("outputs", [Dataset], outputs, member=True, direction=OUT)
+        self.add_property("outputs", Dataset, outputs, member=True, direction=OUT)
 
     @classmethod
     def category(cls):
@@ -753,8 +762,8 @@ class Artifact(Entity, ABC):
 
     def set_solution(self, solution):
         """Add artifacts only if is_compliant"""
-        if solution.is_compliant(self):
-            self.solution = self  # it points backward for scaling
+        if solution.is_compliant([self]):
+            self.solution = solution  # it points backward for scaling
             return True
         return False
 
@@ -806,6 +815,7 @@ class Model(Artifact):
     def __init__(
         self,
         name=None,
+        model_id=None,
         context=None,
         uri=None,
         version=None,
@@ -837,6 +847,7 @@ class Model(Artifact):
         )
 
         # members
+        self.add_property("model_id", str, model_id, required=True, direction=OUT)
         self.add_property("metric", float, 1.0, required=True, direction=OUT)
         self.add_property(
             "input_names",

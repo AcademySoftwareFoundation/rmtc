@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+# RMTC factory registration white list
+
+# Config metadata
+_type:            module
+_version:         1.0.0
+_name:            rmtc_test
+
+Inferer:
+  MockInferer:
+    version:      1.0.0
+    class_path:   rmtc.test.core.MockInferer
+
+Trainer:
+  MockTrainer:
+    version:      1.0.0
+    class_path:   rmtc.test.core.MockTrainer

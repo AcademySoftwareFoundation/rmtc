@@ -247,6 +247,10 @@ IO:
     description:  JPG File IO
     version:      1.0.0
     class_path:   rmtc.core.ops.io.oiio.image.JPG
+  PNG:
+    description:  PNG File IO
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.oiio.image.PNG
   TensorJSONFile:
     description:  JSON Tensors File IO
     version:      1.0.0
@@ -390,3 +394,13 @@ Publisher:
     version:      1.0.0
     description:  Filesystem disk asset publisher
     class_path:   rmtc.core.track.publishing.publishers.filesystem.DiskPublisher
+
+Scheduler:
+  LocalScheduler:
+    version:      1.0.0
+    description:  In process scheduler
+    class_path:   rmtc.core.ops.scheduling.local.schedulers.LocalScheduler
+  WorkerScheduler:
+    version:      1.0.0
+    description:  Sub process scheduler
+    class_path:   rmtc.core.ops.scheduling.local.schedulers.WorkerScheduler

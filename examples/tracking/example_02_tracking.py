@@ -197,7 +197,7 @@ print(f"Run: {run}")
 inference           = rmtc_tracking.create_inference(
     name            = "Inference 1",
     model           = run.model,
-    result_weights  = weights,
+    weights         = run.result_weights,
 )
 
 # create assets from the inference
@@ -205,7 +205,7 @@ assets              = []
 for i in range(3):
     asset           = rmtc_tracking.create_asset(name=f"Image_{i}")
     assets.append(asset)
-inference.outputs   = [rmtc.track.entities.Dataset(assets=assets)]
+inference.outputs   = rmtc.track.entities.Dataset(assets=assets)
 
 # push it & clear
 rmtc_tracking       .push()

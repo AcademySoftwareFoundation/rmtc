@@ -108,23 +108,22 @@ class TorchRegression(Trainer):
         tracker,
         run,
         asset_manager,
+        dataset_range,
     ):
-        """Execute the complete training process with logging and checkpointing.
-
-        Performs end-to-end training including data loading, model preparation,
-        optimizer setup, training loop execution, checkpointing, and final
-        artifact creation. The method handles all aspects of the training
-        lifecycle with comprehensive error handling and resource management.
         """
+        Execute the complete training process with logging and checkpointing.
+        """
+
+        # TODO : deal with dataset ranges
+        if (dataset_range[1] - dataset_range[0]) != 1:
+            raise NotImplementedError()
 
         # TODO : move torch-agnostic aspects of this code up the stack
         # for example: reading, validation, preprocess & batching
 
         # get model & dataset and validate they are compatible
         model = run.model
-        dataset = run.dataset  # TODO: make this plural
-        if dataset.valid_types(model.input_types + model.output_types):
-            raise RMTCException(f"Dataset types {dataset}, do not match {model}")
+        dataset = run.dataset
 
         # validate the dataset before starting
         asset_manager.read([dataset])
@@ -132,18 +131,21 @@ class TorchRegression(Trainer):
             raise RMTCException(f"Invalid entries in dataset {dataset}")
         if len(dataset) == 0:
             raise RMTCException("No data for training!")
+        if not dataset.valid_types(model.input_types + model.output_types):
+            raise RMTCException(f"Dataset types {dataset}, do not match {model}")
 
         # load model duplicate
         # TODO: model should really be const, taking a duplicate
         # however creating checkpoints and weights off the duplicate
         # causes these artifacts to link to the duplcate, not the original
-        if not torch.cuda.is_available():
-            raise RMTCException(
-                f"CUDA is not available. Trainer {self} requires a GPU."
-            )
         training_device = "cuda"
         if self.device == Device.CPU:
             training_device = "cpu"
+        else:
+            if not torch.cuda.is_available():
+                raise RMTCException(
+                    f"CUDA is not available. Trainer {self} requires a GPU."
+                )
         training_model = self.get_model_instance(run, asset_manager)
         torch_model = training_model.torch_model
         torch_model = torch_model.to(training_device)
@@ -279,14 +281,16 @@ class TorchRegression(Trainer):
                         random_seeds.append(random.randint(1, MAX_SIGNED_32_INT))
 
                     # process src & dst using the same seed
-                    for src_assets, dst_assets, processor, random_seed in zip(
-                        src, dst, self.pre_process, random_seeds
+                    for src_assets, dst_assets, random_seed in zip(
+                        src, dst, random_seeds
                     ):
                         for src_asset, dst_asset in zip(src_assets, dst_assets):
                             random.seed(random_seed)
-                            src_asset.process(processor)
+                            for processor in self.pre_process:
+                                src_asset.process(processor)
                             random.seed(random_seed)
-                            dst_asset.process(processor)
+                            for processor in self.pre_process:
+                                dst_asset.process(processor)
 
                 # convert asset to model input and output
                 inputs = model.to_input(src, device=self.device)
@@ -332,7 +336,6 @@ class TorchRegression(Trainer):
                 tracker.log_warning(
                     f"No data loaded in dataset {dataset}@{dataset.uri}"
                 )
-                return (model, None, 1.0, [])
 
             # update model metrics
             mean_loss.append(mean_epoch_loss.mean())
@@ -340,13 +343,14 @@ class TorchRegression(Trainer):
             torch.cuda.empty_cache()
             tracker.log_info(f"Loss: {metric}", step=epoch)
             checkpoint = self._update(
-                run,
-                model,
-                metric,
-                epoch,
-                tracker,
-                optimizer,
-                asset_manager,
+                run=run,
+                model=model,
+                metric=metric,
+                epoch=epoch,
+                tracker=tracker,
+                optimizer_name=self.optimizer,
+                optimizer=optimizer,
+                asset_manager=asset_manager,
             )
             if checkpoint is not None:
                 checkpoints.append(checkpoint)
@@ -376,10 +380,11 @@ class TorchRegression(Trainer):
         )
         asset_manager.write([weights])
         asset_manager.reset([weights, dataset, training_model])
-        if len(dataset.assets) > 0:
+        if len(dataset) > 0:
             raise RMTCException(f"Dataset not empty {dataset}")
 
-        return (model, weights, metric, checkpoints)
+        # we don't make a model so don't return it
+        return (metric, [None, weights] + checkpoints)
 
     def _update(
         self,
@@ -388,6 +393,7 @@ class TorchRegression(Trainer):
         metric,
         epoch,
         tracker,
+        optimizer_name,
         optimizer,
         asset_manager,
     ):
@@ -403,7 +409,7 @@ class TorchRegression(Trainer):
                 io=TorchCheckpointFile(),
                 asset_manager=asset_manager,
             )
-            checkpoint.torch_optimizer = (run.optimizer,)
+            checkpoint.torch_optimizer = (optimizer_name,)
             checkpoint.torch_optimizer_state = (optimizer.state_dict(),)
 
             # create URI and write

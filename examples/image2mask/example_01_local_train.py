@@ -7,7 +7,7 @@ from rmtc import System
 from rmtc.system import Config, Device, FileURI
 from rmtc.ops import artifacts, process, assets
 from rmtc.core.ops.process.image import transform as transform_processors
-from rmtc.core.ops.train.local import schedulers as local_train_schedulers
+from rmtc.core.ops.scheduling.local import schedulers
 from rmtc.core.ops.train.torch import trainers as torch_trainers
 from rmtc.core.ops.scheduling.torch.trackers import TensorBoard
 from rmtc.core.ops.io.filesystem import folders as folder_io
@@ -90,7 +90,7 @@ dataset             = rmtc_sys.create_dataset(artifacts.Dataset,
 
 run                 = rmtc_sys.train(
     solution        = solution,
-    scheduler       = local_train_schedulers.LocalTrainScheduler(rmtc_system=rmtc_sys),
+    scheduler       = schedulers.LocalScheduler(rmtc_system=rmtc_sys),
     trainer         = torch_trainers.TorchRegression(
         lr          = args.lr, 
         batch_size  = args.batch,

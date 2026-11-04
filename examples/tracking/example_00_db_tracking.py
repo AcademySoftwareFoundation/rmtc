@@ -214,9 +214,9 @@ inference           = rmtc.track.entities.Inference(
 assets              = []
 for i in range(3):
     assets          .append(rmtc.track.entities.Asset(name=f"Image_{i}"))
-inference.outputs   = [rmtc.track.entities.Dataset(assets=assets)]
+inference.outputs   = rmtc.track.entities.Dataset(assets=assets)
 
-db                  .create([inference, inference.outputs] + assets)
-db                  .update([inference, inference.outputs] + assets)
+db                  .create([inference, inference.outputs])
+db                  .update([inference, inference.outputs])
 
 db                  .close()

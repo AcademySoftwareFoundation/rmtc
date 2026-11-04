@@ -5,6 +5,7 @@
 Essential basic system classes
 """
 
+import re
 import os
 import enum
 import datetime
@@ -84,7 +85,7 @@ class Operator(enum.IntEnum):
     OR = 3  # At least 1 thing true
     NOR = 4  # At least 1 thing false
     XOR = 5  # Only 1 thing true
-    XNOR = 5  # All true or all false
+    XNOR = 6  # All true or all false
 
     def __repr__(self):
         return self.name.upper()
@@ -345,6 +346,14 @@ class URI:
         self._query = value
         self._string = None
 
+    @property
+    def parent(self):
+        return self.__class__(path=self.path.parent)
+
+    @parent.setter
+    def parent(self, value):
+        self.path = value.path / self.path.name
+
     def __eq__(self, other):
         """Check if this timestamp equals another."""
         if isinstance(other, URI):
@@ -420,7 +429,8 @@ class Package:
                 raise RMTCException(f"Bad version string {string}")
         if isinstance(version, str):
             version = Version(version)
-        if not name.isalnum():
+        package_validity = re.compile(r"[a-z0-9A-Z_]+")
+        if package_validity.fullmatch(name) is None:
             raise RMTCException(f"Bad package name {name}")
         self._name = name
         self._version = version
@@ -494,6 +504,7 @@ class Device(enum.IntEnum):
     TPU = 3  # Dedicated AI ASIC
     QPU = 4  # Quantum
     DNA = 5  # Encoded biocomputing
+    REM = 6  # Remote - something else
     ALL = 100  # Any compute context
 
     def __str__(self):
@@ -674,8 +685,8 @@ class Config:
             name = os.environ.get(self.CONFIG_NAME_ENV_VAR, None)
         if path is None:
             path = self._find_config(name=name)
-            if path is not None:
-                self._load_config(path=path)
+        if path is not None:
+            self._load_config(path=path)
 
     def __str__(self):
         return f"{self._config_path}, overrides: {self._overrides}"
@@ -1202,7 +1213,7 @@ class Factory:
             importlib.invalidate_caches()
             class_obj = getattr(module, class_name)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            self._log.error(f"Cannot import: '{class_path}'\n{e}")
+            self._log.error(f"Cannot import: '{class_path}' - {e}")
 
         return class_obj
 
@@ -1354,3 +1365,53 @@ class Factory:
                     )
         self._log.debug(f"Registered Module: {path}")
         self._paths.append(path)
+
+
+class Serializer(ABC):
+    """
+    Abstract base class for object serialization and deserialization.
+    """
+
+    def __init__(self, factory, objects):
+        """Initialize the Serializer with factory and objects."""
+        self._factory = factory
+        self._objects = objects
+
+    @property
+    def factory(self):
+        """Get the object factory used for deserialization."""
+        return self._factory
+
+    @property
+    def objects(self):
+        """Get the Objects lookup table that deserialized entities are added to."""
+        return self._objects
+
+    @abstractmethod
+    def serialize(self, entities):
+        """
+        Convert the given entities into a string.
+
+        Abstract method that must be implemented by subclasses to define
+        how objects are converted to string format with type preservation.
+
+        The implementation should:
+        - Convert the passed entities, in order
+        - Preserve type information for accurate deserialization
+        - Handle complex object relationships and references
+        """
+
+    @abstractmethod
+    def deserialize(self, string):
+        """
+        Create or update the object list from a string.
+
+        Abstract method that must be implemented by subclasses to define
+        how objects are reconstructed from the string format using type information.
+
+        The implementation should:
+        - Parse the string to extract object data and types
+        - Reuse entities already in the objects lookup, or create them via the factory
+        - Restore object relationships and references
+        - Add the reconstructed entities to the objects lookup
+        """

@@ -5,14 +5,16 @@
 Inference systems and representations.
 """
 
+import statistics
 from abc import ABC, abstractmethod
 
 import rmtc.system
 import rmtc.track
 
+from rmtc.track.entities import Dataset
 from rmtc.track.store import Entity
-from rmtc.system import Device, Datetime
-from rmtc.system.objects import OUT
+from rmtc.system import Device, Datetime, RMTCException
+from rmtc.system.objects import OUT, Immutable
 from rmtc.ops.scheduling import Status, Task
 
 
@@ -50,18 +52,62 @@ class Inference(rmtc.track.entities.Inference, Task):
             direction=OUT,
         )
         self.add_property("duration", float, 0.0, volatile=True)
+        self.add_property("remaining", int, 0, volatile=True)
         self.add_property("started", Datetime, volatile=True)
         self.add_property("status", Status, Status.READY, volatile=True)
         self._start_time = None
+        self._metrics = []
+
+    def get_remaining(self):
+        return self.remaining
 
     def get_status(self):
         return self.status
 
-    def init(self):
+    def init(self, rmtc_system):
         """Initialize run state to default values."""
+
         self.status = Status.READY
         self.metric = 1.0
         self.duration = 0.0
+        self._metrics = []
+
+        # load in the dataset, gather size and then reset
+        asset_manager = rmtc_system.ops.asset_manager
+        asset_manager.read([self.inputs])
+        self.remaining = len(self.inputs) if len(self.inputs) > 0 else 1
+        asset_manager.reset([self.inputs])
+
+    def run(self, rmtc_system, run_range=None):
+
+        # checks
+        if rmtc_system is None:
+            raise RMTCException("No system")
+        if run_range is None or len(run_range) != 2:
+            run_range = (0, self.remaining)
+
+        # run immutably
+        metric, outputs = (0.0, None)
+        with Immutable(self):
+            metric, outputs = self.inferer.run(
+                inference=self,
+                asset_manager=rmtc_system.ops.asset_manager,
+                input_range=run_range,
+            )
+
+        return (metric, outputs)
+
+    def update(self, rmtc_system, index, results):
+        """
+        Merge in the results
+        """
+        # TODO : manage out of sequence
+        metric = results[0]
+        outputs = results[1][0]
+        for row in outputs:
+            row = self.outputs.fill_row(row)
+        self.remaining = self.remaining - len(outputs)
+        self._metrics.append(metric)
 
     def start(self):
         """Start the inferer if in READY state."""
@@ -98,10 +144,6 @@ class Inference(rmtc.track.entities.Inference, Task):
     def finish(self):
         """
         Complete the inference with outputs.
-
-        Finalizes a running inference by setting the final status,
-        updating duration, recording outputs, and adding the result
-        model to the parent solution.
         """
         if self.status not in (
             Status.FAILED,
@@ -111,6 +153,7 @@ class Inference(rmtc.track.entities.Inference, Task):
             self.duration += (Datetime.now().timestamp() * 1000) - (
                 self._start_time.timestamp() * 1000.0
             )
+            self.metric = statistics.mean(self._metrics)
 
     def is_complete(self):
         return self.status not in (
@@ -187,15 +230,17 @@ class Inferer(Entity, ABC):
         self,
         inference,
         asset_manager,
-    ) -> float:
-        return self.run(inference, asset_manager)
+        input_range,
+    ) -> (float, (Dataset,)):
+        return self.run(inference, asset_manager, input_range)
 
     @abstractmethod
     def run(
         self,
         inference,
         asset_manager,
-    ) -> float:
+        input_range,
+    ) -> (float, (Dataset,)):
         pass
 
     @classmethod

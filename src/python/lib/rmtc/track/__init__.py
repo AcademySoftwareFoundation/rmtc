@@ -203,19 +203,31 @@ class Tracking:
         self._store.clear()
         self._broadcaster(TrackingMessage.CLEARED, [])
 
-    def pull(self, entities=None):
+    def pull(self, entities=None, force=False):
         """Pull all objects from the data store into the DOM. Slow."""
 
+        # TODO: need to check if DB has an updated, force ALWAYS syncs
+
         # get list to manage
+        objs = []
         if entities is None:
-            entities = self._objects.get()
+            # collect all the entities and recurse down the tree
+            objs = self._objects.get(recurse=True)
+        else:
+            objs = entities
+        if force:
+            for entity in objs:
+                entity.mark_for_sync()
 
         # create connection
         connection = self.open()
         if connection is None:
             return []
-        synced = connection.sync(entities)  # syncs only marked items
+        synced = connection.sync(objs)  # syncs only marked items
         connection.close()
+
+        # filter for non-tracked entities
+        objs = [entity for entity in objs if entity.is_tracked()]
 
         # notify
         if len(synced) > 0:
@@ -226,7 +238,7 @@ class Tracking:
 
         return synced
 
-    def push(self, entities=None):
+    def push(self, entities=None, force=False):
         """Push all objects to the data store. Should only push the updated data"""
 
         # create a connection
@@ -239,6 +251,9 @@ class Tracking:
             objs = self._objects.get(recurse=True)
         else:
             objs = entities
+        if force:
+            for entity in objs:
+                entity.mark_for_update()
 
         # filter for non-tracked entities
         objs = [entity for entity in objs if entity.is_tracked()]
@@ -297,13 +312,14 @@ class Tracking:
         if connection is None:
             raise RMTCException("Connection is none")
 
-        sources = []
-
         # get list of derivatives
         entities = entity.trace_sources(connection)
+
+        # add to session
         self.add_entities(entities)
 
         # recurse
+        sources = []
         if recurse:
             for child in entities:
                 sources.append(
@@ -312,6 +328,8 @@ class Tracking:
                         connection=connection,
                     )
                 )
+        else:
+            sources = [(child, []) for child in entities]
 
         return (entity, sources)
 
@@ -335,13 +353,14 @@ class Tracking:
         if connection is None:
             raise RMTCException("Connection is none")
 
-        derivatives = []
-
         # get list of derivatives
         entities = entity.trace_derivatives(connection)
+
+        # add to session
         self.add_entities(entities)
 
         # recurse
+        derivatives = []
         if recurse:
             for child in entities:
                 derivatives.append(
@@ -350,6 +369,8 @@ class Tracking:
                         connection=connection,
                     )
                 )
+        else:
+            derivatives = [(child, []) for child in entities]
 
         return (entity, derivatives)
 
@@ -767,6 +788,8 @@ class Tracking:
             weights = run.create_weights(object_type, **kwargs)
         else:
             weights = object_type(**kwargs)
+            if kwargs.get("name") is None:
+                weights.name = weights.default_name()
         self.add_entities([weights])
 
         return weights
@@ -783,6 +806,8 @@ class Tracking:
             checkpoint = run.create_checkpoint(object_type, **kwargs)
         else:
             checkpoint = object_type(**kwargs)
+            if kwargs.get("name") is None:
+                checkpoint.name = checkpoint.default_name()
         self.add_entities([checkpoint])
 
         return checkpoint

@@ -2,7 +2,7 @@
 # Copyright Contributors to the RMTC Project
 
 
-from rmtc.ops.scheduling import Job, Executor
+from rmtc.ops.scheduling import Job
 
 
 class AWSJob(Job):
@@ -16,15 +16,17 @@ class AWSJob(Job):
 
     def __init__(
         self,
-        tracker=None,
-        run=None,
+        task=None,
         job_id=None,
+        job_range=None,
+        rmtc_system=None,
     ):
         """Initialize AWSJob with AWS-specific configuration."""
         super(AWSJob, self).__init__(
-            tracker=tracker,
-            run=run,
+            task=task,
+            rmtc_system=rmtc_system,
             job_id=job_id,
+            job_range=job_range,
         )
 
     def start(self):
@@ -42,27 +44,3 @@ class AWSJob(Job):
     def stop(self):
         """Stop running AWS job (placeholder implementation)."""
         raise NotImplementedError()
-
-
-class AWSExecutor(Executor):
-    """
-    Executor for task execution on AWS infrastructure.
-
-    The AWSExecutor class provides an execution interface for running
-    training tasks on AWS compute resources. It integrates with AWS
-    services to enable distributed, scalable execution of ML workloads
-    with proper resource management and monitoring.
-    """
-
-    def __init__(
-        self,
-        job=None,
-    ):
-        """Initialize AWSExecutor with AWS-specific configuration."""
-        super(AWSExecutor, self).__init__(
-            job=job,
-        )
-
-    def __call__(self, tracker, task):
-        """Execute task on AWS infrastructure (placeholder implementation)."""
-        pass

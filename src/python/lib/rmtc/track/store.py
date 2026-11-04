@@ -190,6 +190,7 @@ class Entity(Object, ABC):
         self.broadcaster(EntityMessage.UPDATED, self)
 
     def mark_for_create(self):
+        """Mark entity for creation"""
         self._requires_create = True
         self.broadcaster(EntityMessage.REQUIRES_CREATE, self)
 
@@ -343,12 +344,14 @@ class Proxy(Entity):
         category=None,
         name=None,
         obj_id=None,
+        type_name=None,
     ):
         super(Proxy, self).__init__(
             name=name,
             obj_id=obj_id,
         )
         self._category = category
+        self._type_name = type_name
 
     def set_category(self, category):
         self._category = category
@@ -365,6 +368,11 @@ class Proxy(Entity):
     def __str__(self):
         string = super(Proxy, self).__str__()
         return f"Proxy({string})"
+
+    @property
+    def type_name(self):
+        """Type name of the entity this proxy stands in for, if known"""
+        return self._type_name
 
     @property
     def class_category(self):
