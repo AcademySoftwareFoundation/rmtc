@@ -40,9 +40,9 @@ class TorchWeightsFile(IO):
 
     def read(self, uri, artifact, asset_manager):
         """Load PyTorch weights from file into artifact."""
-        device = "cuda"
-        if artifact.get_device() == Device.CPU:
-            device = "cpu"
+        device = "cpu"
+        if artifact.get_device() == Device.GPU and torch.cuda.is_available():
+            device = "cuda"
         weights = artifact
         if weights.torch_weights is None:
             if uri.path.exists():

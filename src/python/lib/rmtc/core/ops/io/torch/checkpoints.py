@@ -49,9 +49,9 @@ class TorchCheckpointFile(IO):
         Loads the complete training state including model weights, optimizer
         state, epoch information, and metrics from the checkpoint file.
         """
-        device = "cuda"
-        if artifact.get_device() == Device.CPU:
-            device = "cpu"
+        device = "cpu"
+        if artifact.get_device() == Device.GPU and torch.cuda.is_available():
+            device = "cuda"
 
         checkpoint = artifact
         if uri.path.exists():

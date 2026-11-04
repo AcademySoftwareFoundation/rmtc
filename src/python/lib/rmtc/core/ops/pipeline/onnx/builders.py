@@ -93,7 +93,9 @@ class ONNXBuilder(Builder):
         )
 
         # push all to same device
-        device = Device.GPU
+        device = Device.CPU
+        if torch.cuda.is_available():
+            device = Device.GPU
 
         # construct inputs
         input_assets = []
@@ -108,10 +110,7 @@ class ONNXBuilder(Builder):
         torch_model = model.torch_model
 
         # convert to torch
-        device = "cuda"
-        if device == Device.CPU:
-            device = "cpu"
-        torch_model.to(device)
+        torch_model.to("cuda" if device == Device.GPU else "cpu")
 
         # construct the model input
         torch_model.eval()

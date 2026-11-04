@@ -40,9 +40,9 @@ class SingleTorchTensor(Packager):
             out = out.astype(Tensor.to_array_type(self.data_type))
 
         # convert to torch
-        device_name = "cuda"
-        if device == Device.CPU:
-            device_name = "cpu"
+        device_name = "cpu"
+        if device == Device.GPU and torch.cuda.is_available():
+            device_name = "cuda"
         out = torch.from_numpy(out).to(device_name)
 
         # return
@@ -88,15 +88,15 @@ class BatchedTorchTensor(Packager):
         out = np.stack(tensors, axis=0)
 
         # make flat
-        if self.flatten:
+        if self.contiguous:
             out = np.ascontiguousarray(out)
         if self.data_type is not DataType.INVALID:
             out = out.astype(Tensor.to_array_type(self.data_type))
 
         # convert to torch
-        device_name = "cuda"
-        if device == Device.CPU:
-            device_name = "cpu"
+        device_name = "cpu"
+        if device == Device.GPU and torch.cuda.is_available():
+            device_name = "cuda"
         out = torch.from_numpy(out).to(device_name)
 
         # return

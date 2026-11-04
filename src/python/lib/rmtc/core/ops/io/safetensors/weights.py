@@ -3,6 +3,7 @@
 
 from pathlib import Path
 
+import torch
 from safetensors.torch import load_file, save_file
 
 from rmtc.system import Device, RMTCException
@@ -32,9 +33,9 @@ class SafetensorsTorchWeightsFile(IO):
 
     def read(self, uri, artifact, asset_manager):
         """Load weights from safetensors file into artifact."""
-        device = "cuda"
-        if artifact.get_device() == Device.CPU:
-            device = "cpu"
+        device = "cpu"
+        if artifact.get_device() == Device.GPU and torch.cuda.is_available():
+            device = "cuda"
         weights = artifact
         if weights.torch_weights is None:
             if uri.path.exists():
