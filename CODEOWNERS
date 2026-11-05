@@ -9,11 +9,11 @@
 # @global-owner1 and @global-owner2 will be requested for
 # review when someone opens a pull request.
 
-./docs/*.* - jsmccarten-wetafx
-./examples/*.* - jsmccarten-wetafx
-./maintainers/*.* - jsmccarten-wetafx
-./res/*.* - jsmccarten-wetafx
-./src/*.* - jsmccarten-wetafx
-./tests/*.* - jsmccarten-wetafx
-./tsc/*.* - jsmccarten-wetafx
-./*.* - jsmccarten-wetafx
+./docs/*.* - jmccarten-wetafx
+./examples/*.* - jmccarten-wetafx
+./maintainers/*.* - jmccarten-wetafx
+./res/*.* - jmccarten-wetafx
+./src/*.* - jmccarten-wetafx
+./tests/*.* - jmccarten-wetafx
+./tsc/*.* - jmccarten-wetafx
+./*.* - jmccarten-wetafx

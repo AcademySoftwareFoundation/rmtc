@@ -1,359 +1,338 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Contributors to the RMTC Project
 
-"""
-The basic System & DOM classes, these specify how all the sub components
-come together.
-"""
+import os
 
-import datetime
-import enum
-
-import rmtc.track
-import rmtc.infer
-import rmtc.train
-import rmtc.system
-
-
-class SystemMessage(enum.IntEnum):
-
-    CLEARED = 0
-    PULLED = 1
-    PUSHED = 2
-    SYNCED = 3
-    DELETED = 4
-    FETCHED = 5
-    CREATED = 6
-    UPDATED = 7
-    ADDED = 8
-    REMOVED = 9
-    PUBLISHED = 10
-    BUILT = 11
-    TRAINING = 12
-    INFERRING = 13
+from rmtc.interface import Client
+from rmtc.track import Tracking
+from rmtc.ops import Operations
+from rmtc.system import (
+    URI,
+    LogLevel,
+    Mode,
+    Broadcaster,
+    Logger,
+    Config,
+    Factory,
+    Version,
+    TypeName,
+    RMTCException,
+)
+from rmtc.system.objects import Object
+from rmtc.ops.pipeline import Pipeline
+from rmtc.ops.scheduling import Scheduler
 
 
-class System:
+class System(Client):
     """
-    This class provides the primary entry point for RMTC and abstracts some of the
-    processes for training, inference and storage.
+    RMTC Core system implementation with AGE database and TensorBoard integration.
 
-    It manages connections to data stores and provides methods for database operations
-    on various entity types.
-
-    The storage system has been abstracted, some elements like password & user may
-    not be applicable for all classes of storage (e.g. a file)
+    The System class extends the base RMTC System to provide a complete ML tracking
+    and collaboration system with AGE graph database storage, TensorBoard experiment
+    tracking, and configuration management. It automatically configures components
+    from the system configuration file and provides a unified interface for ML
+    workflow management.
     """
 
     def __init__(
         self,
-        store,
-        objects,
-        tracker,
-        log,
-        config,
-        mode,
-        credentials,
-        asset_manager,
-        env_manager,
-        broadcaster,
-        factory,
+        config=None,
+        store=None,
+        tracker=None,
+        objects=None,
+        log=None,
+        jit=None,
+        publisher=None,
+        readerwriter=None,
+        asset_manager=None,
+        tracer=None,
+        watermarkers=None,
+        env_manager=None,
+        factory=None,
+        pipelines=None,
+        credentials=None,
+        filters=None,
+        party=None,
+        jurisdiction=None,
     ):
-        # quick check
-        if config is None:
-            raise rmtc.system.RMTCException("Invalid config - can't init system")
-        if objects is None:
-            raise rmtc.system.RMTCException("Invalid objects - can't init system")
-        if log is None:
-            raise rmtc.system.RMTCException("Invalid log - can't init system")
-        if mode is None:
-            raise rmtc.system.RMTCException("Invalid mode - can't init system")
-        if tracker is None:
-            raise rmtc.system.RMTCException("Invalid tracker - can't init system")
-        if store is None:
-            raise rmtc.system.RMTCException("Invalid store - can't init system")
-        if asset_manager is None:
-            raise rmtc.system.RMTCException("Invalid asset manager - can't init system")
-        if env_manager is None:
-            raise rmtc.system.RMTCException("Invalid env manager - can't init system")
-        if broadcaster is None:
-            raise rmtc.system.RMTCException("Invalid broadcaster - can't init system")
-        if factory is None:
-            raise rmtc.system.RMTCException("Invalid factory - can't init system")
+        # Create event system
+        self._broadcaster = Broadcaster()
 
-        # store
-        self._store = store
-        self._tracker = tracker
+        # Query version
+        try:
+            self._version = Version(os.getenv("RMTC_VERSION", "0.0.0"))
+        except:  # pylint: disable=bare-except
+            self._version = Version("0.0.0")
+
+        # Create a config
+        config = config or Config()
         self._config = config
+
+        # Create log for initialising subsystems
+        if log is None:
+            log = Logger()
+            log_config = config["rmtc_log"]
+            if log_config:
+                level = LogLevel[log_config["level"]]
+                log.set_level(level)
         self._log = log
-        self._username = credentials[0]
-        self._password = credentials[1]
-        self._mode = mode
-        self._asset_manager = asset_manager
-        self._env_manager = env_manager
-        self._broadcaster = broadcaster
+
+        # log now
+        log.info(f"Loaded config {self._config.path}")
+
+        # Create a factory - key
+        if factory is None:
+            factory = Factory(log=log)
         self._factory = factory
+
+        # Basic System init
+        self._mode = Mode.PRODUCTION
+        system_config = config["rmtc_system"]
+        if system_config:
+            self._mode = Mode[system_config["mode"]]
+
+        # Get password and username for env if not passed in
+        if credentials is None:
+            credentials = (os.getenv("RMTC_USER"), os.getenv("RMTC_PW"))
+        if credentials[0] is None or credentials[1] is None:
+            raise RMTCException("No credentials")
+
+        # JIT sync
+        if jit is None and config["rmtc_jit"]:
+            jit = self._construct(
+                config["rmtc_jit"],
+                rmtc_sys=self,
+            )
+
+        # Default tracker
+        if tracker is None and config["rmtc_tracker"]:
+            tracker = self._construct(
+                config["rmtc_tracker"],
+                log=log,
+            )
+
+        # Store config
+        if store is None and config["rmtc_store"]:
+            store = self._construct(
+                config["rmtc_store"],
+                factory=factory,
+                log=log,
+                jit=jit,
+            )
+
+        # General dependency eco system
+        if env_manager is None and config["rmtc_env_manager"]:
+            env_manager = self._construct(
+                config["rmtc_env_manager"],
+                log=log,
+            )
+
+        # Publisher manager
+        if publisher is None and config["rmtc_publisher"]:
+            publisher = self._construct(
+                config["rmtc_publisher"],
+                log=log,
+            )
+
+        # Pipeline tracer
+        if tracer is None and config["rmtc_tracer"]:
+            tracer = self._construct(
+                config["rmtc_tracer"],
+                log=log,
+            )
+
+        # Add the watermarkers
+        if watermarkers is None and config["rmtc_watermarkers"]:
+            watermarkers_config = config["rmtc_watermarkers"]
+            watermarkers = []
+            for watermarker_config in watermarkers_config:
+                watermarker = self._construct(
+                    watermarker_config,
+                )
+                watermarkers.append(watermarker)
+
+        # File manager
+        if readerwriter is None and config["rmtc_readerwriter"]:
+            readerwriter = self._construct(
+                config["rmtc_readerwriter"],
+                log=log,
+                env_manager=env_manager,
+                publisher=publisher,
+            )
+
+        # Add the pipelines
+        if pipelines is None and config["rmtc_pipelines"]:
+            pipelines_config = config["rmtc_pipelines"]
+            pipelines = []
+            for name in pipelines_config:
+                builders = []
+                for builder_config in pipelines_config[name]:
+                    builder = self._construct(
+                        builder_config,
+                    )
+                    builders.append(builder)
+                pipeline = Pipeline(
+                    name=name,
+                    builders=builders,
+                    log=log,
+                )
+                pipelines.append(pipeline)
+
+        # Asset manager - file readwrite & publishing
+        if asset_manager is None and config["rmtc_asset_manager"]:
+            asset_manager = self._construct(
+                config["rmtc_asset_manager"],
+                log=log,
+                publisher=publisher,
+                readerwriter=readerwriter,
+            )
+
+        # Simple DOM store
+        if objects is None and config["rmtc_objects"]:
+            objects = self._construct(config["rmtc_objects"])
         self._objects = objects
 
-        # listen to the store and add entities to the DOM
-        self._store.broadcaster.add(
-            rmtc.track.StoreMessage.ADDED, lambda entities: self.add_entities(entities)
-        )
-        self._store.broadcaster.add(
-            rmtc.track.StoreMessage.REMOVED,
-            lambda entities: self.remove_entities(entities),
+        # Add tracking filters
+        if filters is None and config["rmtc_filters"]:
+            filters_config = config["rmtc_filters"]
+            filters = []
+            for filter_config in filters_config:
+                new_filter = self._construct(
+                    filter_config,
+                )
+                filters.append(new_filter)
+
+        # Create the tracking subsystem
+        self._track = Tracking(
+            store=store,
+            asset_manager=asset_manager,
+            publisher=publisher,
+            watermarkers=watermarkers,
+            tracer=tracer,
+            objects=objects,
+            credentials=credentials,
+            log=log,
+            factory=factory,
+            filters=filters,
+            party=party,
+            jurisdiction=jurisdiction,
         )
 
-    def __repr__(self):
-        string = f"{self.__class__.__module__}.{self.__class__.__name__}\n"
-        string += f" - Mode: {self.mode}\n"
-        string += f" - Config: {self.config}\n"
-        string += f" - Objects: {self.objects}\n"
-        string += f" - Store: {self.store}\n"
-        string += f" - Tracker: {self.tracker}\n"
-        string += f" - Log: {self.log}\n"
-        string += f" - Asset Manager: {self.asset_manager}"
-        string += f" - Env Manager: {self.env_manager}"
-        return string
+        # Create the operations subsystem on top of the tracker
+        self._ops = Operations(
+            tracking=self._track,
+            tracker=tracker,
+            asset_manager=asset_manager,
+            pipelines=pipelines,
+            env_manager=env_manager,
+            log=log,
+        )
+
+        # Install a process-wide namer for naming convention overrides on all objects
+        Object.set_namer(
+            asset_manager.default_name if asset_manager is not None else None
+        )
+
+        # Startup
+        self.log.info(
+            f"Rongotai Model Train Club - v{self._version} / {self.config.name}"
+        )
+        self.log.info("Copyright Contributors to the RMTC Project")
+
+    def _construct(self, config, **kwargs):
+        """
+        Simple
+        """
+        args = {}
+        for k, v in config.items():
+            if k == "uri":
+                args[k] = URI(v)
+            elif k == "type_name":
+                args[k] = TypeName(v)
+            else:
+                args[k] = v
+        try:
+            return self._factory.create(
+                **args,
+                **kwargs,
+            )
+        except RMTCException as e:
+            self._log.warning(f"Failed to construct {args['type_name']}\n{e}")
+        return None
 
     @property
-    def broadcaster(self):
-        return self._broadcaster
+    def ops(self):
+        return self._ops
 
     @property
-    def mode(self):
-        """Get system mode."""
-        return self._mode
+    def track(self):
+        return self._track
+
+    @property
+    def log(self):
+        return self._log
+
+    @property
+    def objects(self):
+        return self._objects
 
     @property
     def factory(self):
         return self._factory
 
     @property
-    def store(self):
-        """Get the data store backend."""
-        return self._store
+    def broadcaster(self):
+        return self._broadcaster
 
     @property
-    def objects(self):
-        """Get the object manager."""
-        return self._objects
+    def version(self):
+        return self._version
 
     @property
-    def tracker(self):
-        """Get the tracking system."""
-        return self._tracker
-
-    @property
-    def env_manager(self):
-        """Get the environment configuration."""
-        return self._env_manager
+    def mode(self):
+        return self._mode
 
     @property
     def config(self):
-        """Get the configuration manager."""
         return self._config
 
-    @property
-    def log(self):
-        """Get the data store backend."""
-        return self._log
+    def is_valid(self):
+        if self.track is None:
+            return False
+        if self.ops is None:
+            return False
+        if not self.track.is_valid():
+            return False
+        if not self.ops.is_valid():
+            return False
+        return True
 
-    @property
-    def asset_manager(self):
-        """Get the asset manager."""
-        return self._asset_manager
+    # entity management
 
-    def setup(self, env):
-        """Set up the system environment."""
-        if self._env_manager is not None:
-            self._env_manager.setup(env)
+    def add_entities(self, entities):
+        return self._track.add_entities(entities)
 
-    def teardown(self, env):
-        """Tear down the system environment."""
-        if self._env_manager is not None:
-            self._env_manager.teardown(env)
-
-    def open(self):
-        """Open a connection to the data store."""
-        # TODO: store a auth style token here and use that to open
-        connection = self._store.connect(
-            username=self._username or self._config["rmtc_store"]["username"],
-            password=self._password or self._config["rmtc_store"]["password"],
-        )
-        if connection is None:
-            raise rmtc.system.RMTCException("Unable to open connection")
-        return connection
+    def remove_entities(self, entities):
+        return self._track.remove_entities(entities)
 
     def clear(self):
-        """Clear all local DOM objects - not persistent."""
-        self._objects.clear()
-        self._store.clear()
-        self._broadcaster(SystemMessage.CLEARED, [])
+        return self._track.clear()
 
-    def pull(self, entities=None):
-        """Pull all objects from the data store into the DOM. Slow."""
+    def pull(self, entities=None, force=False):
+        return self._track.pull(entities, force=force)
 
-        # get list to manage
-        if entities is None:
-            entities = self._objects.get()
+    def push(self, entities=None, force=False):
+        return self._track.push(entities, force=force)
 
-        # create connection
-        connection = self.open()
-        if connection is None:
-            return []
-        synced = connection.sync(entities)  # syncs only marked items
-        connection.close()
+    def delete_all(self, store_name=None):
+        return self._track.delete_all(store_name=store_name)
 
-        # notify
-        self.log.info(f"Pulled: {len(synced)} from {self._store}")
-        self._broadcaster(SystemMessage.PULLED, synced)
-        self._broadcaster(SystemMessage.SYNCED, synced)
+    # artifact management
 
-        return synced
+    def publish(self, entities, **kwargs):
+        return self._track.publish(entities, **kwargs)
 
-    def push(self, entities=None):
-        """Push all objects to the data store. Should only push the updated data"""
-        connection = self.open()
-        if connection is None:
-            return []
-        objs = []
-        if entities is None:
-            objs = self._objects.get()
-        else:
-            objs = entities
-        created = connection.create(objs)  # creates items that don't exist in store
-        updated = connection.update(objs)  # updates only marked items
-        deleted = connection.delete(objs)  # deletes only marked items
-        pushed = list(set(created + updated + deleted))
-
-        # remove entities from the DOM
-        # TODO : should listen to the store
-        self.objects.remove(deleted)
-
-        self.log.info(f"Pushed: {len(pushed)} to {self._store}")
-        connection.close()
-        self._broadcaster(SystemMessage.PUSHED, pushed)
-        self._broadcaster(SystemMessage.CREATED, created)
-        self._broadcaster(SystemMessage.UPDATED, updated)
-        self._broadcaster(SystemMessage.DELETED, deleted)
-
-        return pushed
-
-    def build(self, artifacts, pipeline_name=None):
-
-        # build legit list of things to publish
-        to_build = []
-        for artifact in artifacts:
-            if artifact is None:
-                self.log.warning(f"Invalid entity in publish list {artifacts}")
-                continue
-            to_build.append(artifact)
-
-        # build them
-        built_artifacts = self.asset_manager.build(
-            to_build, pipeline_name=pipeline_name
-        )
-        self.add_entities(built_artifacts)
-        self.log.info(f"Built: {len(built_artifacts)}")
-        self._broadcaster(SystemMessage.BUILT, built_artifacts)
-        return built_artifacts
-
-    def publish(self, artifacts, **kwargs):
-
-        # build legit list of things to publish
-        to_publish = set()
-        for artifact in artifacts:
-            if artifact is None:
-                self.log.warning(f"Invalid entity in publish list {artifacts}")
-                continue
-            if artifact.requires_create():
-                self.log.warning(
-                    f"Unable to publish {artifact} as not yet pushed to store"
-                )
-                continue
-            if not self.asset_manager.is_supported(artifact):
-                self.log.warning(
-                    f"Unable to publish {artifact} as not supported by {self.asset_manager}"
-                )
-                continue
-            to_publish.add(artifact)
-
-        # publish them
-        published = self.asset_manager.publish(list(to_publish), **kwargs)
-        self.push(list(to_publish))
-        self.log.info(f"Published: {len(published)}")
-        self._broadcaster(SystemMessage.PUBLISHED, published)
-        return published
-
-    def _get(self, connection, entity_ids, sync=True):
-        """Fetch entities from the data store by IDs."""
-        entities = connection.fetch(entity_ids)
-        if sync:
-            connection.sync(entities)
-        self._broadcaster(SystemMessage.FETCHED, entities)
-        self.add_entities(entities)
-        return entities
-
-    def trace_sources(self, entity, recurse=True, connection=None):
-        """Get source entities for a given entity recursively."""
-        if entity is None:
-            raise rmtc.system.RMTCException("Entity is none")
-        if connection is None:
-            connection = self.open()
-        if connection is None:
-            raise rmtc.system.RMTCException("Connection is none")
-        sources = entity.trace_sources(connection)
-        self.add_entities(sources)
-        if recurse:
-            results = []
-            for source in sources:
-                second_sources = self.trace_sources(source, connection=connection)
-                results.append(second_sources)
-            return (entity, results)
-        return (entity, list(sources))
-
-    def trace_derivatives(self, entity, recurse=True, connection=None):
-        """Get derivative entities for a given entity recursively."""
-        if entity is None:
-            raise rmtc.system.RMTCException("Entity is none")
-        if connection is None:
-            connection = self.open()
-        if connection is None:
-            raise rmtc.system.RMTCException("Connection is none")
-        derivatives = entity.trace_derivatives(connection)
-        self.add_entities(derivatives)
-        if recurse:
-            results = []
-            for derivative in derivatives:
-                second_derivs = self.trace_derivatives(
-                    derivative, connection=connection
-                )
-                results.append(second_derivs)
-            return (entity, results)
-        return (entity, list(derivatives))
-
-    def delete_all(self):
-        """
-        Erase all data from the store.
-
-        This is a destructive operation that removes all data from the store.
-        Only allowed in none-prod mode for safety.
-        """
-        # TODO: add privilege check
-        if self.mode == rmtc.system.Mode.PRODUCTION:
-            raise rmtc.system.RMTCException(
-                "Failed atempt made to erase store outside testing environment"
-            )
-        connection = self.open()
-        if connection is None:
-            return False
-        deleted = connection.delete_all()
-        connection.close()
-        self.log.warning(f"Deleted: {deleted}")
-        self._broadcaster(SystemMessage.DELETED, deleted)
-        self.clear()
-        return True
+    # queries
 
     def get_runs(
         self,
@@ -366,293 +345,352 @@ class System:
         result_weights=None,
         solution=None,
         sync=True,
+        exact=True,
+        version=None,
+        instantiated_after=None,
+        instantiated_before=None,
+        latest=False,
+        limit=None,
     ):
-        """
-        Get training runs based on specified criteria.
-
-        Note that run connections are directed to the most common object
-        this means that a weights file points to the model, not the other way
-        around, even though you could consider a weights object to be a derivative
-        of a model.
-        """
-        connection = self.open()
-        entity_ids = connection.queries.get_runs(
+        return self._track.get_runs(
             name=name,
             model=model,
-            trainer=trainer,
             dataset=dataset,
             checkpoint=checkpoint,
+            trainer=trainer,
             result_checkpoint=result_checkpoint,
             result_weights=result_weights,
             solution=solution,
+            sync=sync,
+            exact=exact,
+            version=version,
+            instantiated_after=instantiated_after,
+            instantiated_before=instantiated_before,
+            latest=latest,
+            limit=limit,
         )
-        results = self._get(connection, entity_ids, sync)
-        results.sort(key=lambda run: run.metric)
-        connection.close()
-        return results
 
-    def get_models(self, name=None, version=None, model_license=None, sync=True):
-        """Get models based on basic criteria."""
-        connection = self.open()
-        entity_ids = connection.queries.get_models(
-            name=name, version=version, model_license=model_license
-        )
-        results = self._get(connection, entity_ids, sync)
-        results.sort(key=lambda model: model.metric)
-        connection.close()
-        return results
+    def get_best_run(
+        self,
+        solution,
+    ):
+        return self._track.get_best_run(solution=solution)
 
-    def get_licenses(self, name=None, version=None, sync=True):
-        """Get licenses based on specified criteria."""
-        connection = self.open()
-        entity_ids = connection.queries.get_licenses(name=name, version=version)
-        results = self._get(connection, entity_ids, sync)
-        connection.close()
-        return results
-
-    def get_solutions(self, name=None, sync=True):
-        """Get solutions based on specified criteria."""
-        connection = self.open()
-        entity_ids = connection.queries.get_solutions(
+    def get_models(
+        self,
+        name=None,
+        model_license=None,
+        sync=True,
+        exact=True,
+        version=None,
+        instantiated_after=None,
+        instantiated_before=None,
+        latest=False,
+        limit=None,
+    ):
+        return self._track.get_models(
             name=name,
+            model_license=model_license,
+            sync=sync,
+            exact=exact,
+            version=version,
+            instantiated_after=instantiated_after,
+            instantiated_before=instantiated_before,
+            latest=latest,
+            limit=limit,
         )
-        results = self._get(connection, entity_ids, sync)
-        connection.close()
-        return results
 
-    def get_datasets(self, name=None, version=None, dataset_license=None, sync=True):
-        """Get datasets based on specified criteria."""
-        connection = self.open()
-        entity_ids = connection.queries.get_datasets(
-            name=name, version=version, dataset_license=dataset_license
+    def get_licenses(
+        self,
+        name=None,
+        sync=True,
+        exact=True,
+        version=None,
+        instantiated_after=None,
+        instantiated_before=None,
+        latest=False,
+        limit=None,
+    ):
+        return self._track.get_licenses(
+            name=name,
+            sync=sync,
+            exact=exact,
+            version=version,
+            instantiated_after=instantiated_after,
+            instantiated_before=instantiated_before,
+            latest=latest,
+            limit=limit,
         )
-        results = self._get(connection, entity_ids, sync)
-        connection.close()
-        return results
+
+    def get_solutions(
+        self,
+        name=None,
+        sync=True,
+        exact=True,
+        version=None,
+        instantiated_after=None,
+        instantiated_before=None,
+        latest=False,
+        limit=None,
+    ):
+        return self._track.get_solutions(
+            name=name,
+            sync=sync,
+            exact=exact,
+            version=version,
+            instantiated_after=instantiated_after,
+            instantiated_before=instantiated_before,
+            latest=latest,
+            limit=limit,
+        )
+
+    def get_datasets(
+        self,
+        name=None,
+        dataset_license=None,
+        sync=True,
+        exact=True,
+        version=None,
+        instantiated_after=None,
+        instantiated_before=None,
+        latest=False,
+        limit=None,
+    ):
+        return self._track.get_datasets(
+            name=name,
+            dataset_license=dataset_license,
+            sync=sync,
+            exact=exact,
+            version=version,
+            instantiated_after=instantiated_after,
+            instantiated_before=instantiated_before,
+            latest=latest,
+            limit=limit,
+        )
 
     def get_inferences(
-        self, name=None, weights=None, model=None, asset=None, sync=True
+        self,
+        name=None,
+        weights=None,
+        model=None,
+        inputs=None,
+        outputs=None,
+        solution=None,
+        sync=True,
+        exact=True,
+        version=None,
+        instantiated_after=None,
+        instantiated_before=None,
+        latest=False,
+        limit=None,
     ):
-        """Get inferences based on specified criteria."""
-        connection = self.open()
-        entity_ids = connection.queries.get_inferences(
+        return self._track.get_inferences(
             name=name,
-            model=model,
             weights=weights,
-            asset=asset,
+            model=model,
+            inputs=inputs,
+            outputs=outputs,
+            solution=solution,
+            sync=sync,
+            exact=exact,
+            version=version,
+            instantiated_after=instantiated_after,
+            instantiated_before=instantiated_before,
+            latest=latest,
+            limit=limit,
         )
-        results = self._get(connection, entity_ids, sync)
-        connection.close()
-        return results
 
-    def get_assets(self, uri=None, name=None, asset_license=None, sync=True):
-        """Get assets based on specified criteria."""
-        connection = self.open()
-        entity_ids = connection.queries.get_assets(
-            name=name, uri=uri, asset_license=asset_license
+    def get_assets(
+        self,
+        uri=None,
+        name=None,
+        sync=True,
+        exact=True,
+        version=None,
+        instantiated_after=None,
+        instantiated_before=None,
+        latest=False,
+        limit=None,
+    ):
+        self.log.warning("Requesting assets - which are generally untracked")
+        return self._track.get_assets(
+            uri=uri,
+            name=name,
+            sync=sync,
+            exact=exact,
+            version=version,
+            instantiated_after=instantiated_after,
+            instantiated_before=instantiated_before,
+            latest=latest,
+            limit=limit,
         )
-        results = self._get(connection, entity_ids, sync)
-        connection.close()
-        return results
 
-    def get_entities(self, name=None, category=None, ids=None, sync=True):
-        """Get entities based on specified criteria."""
-        connection = self.open()
-        entity_ids = ids or connection.queries.get_entities(
+    def get_entities(
+        self,
+        name=None,
+        categories=None,
+        obj_ids=None,
+        sync=True,
+        exact=True,
+        version=None,
+        instantiated_after=None,
+        instantiated_before=None,
+        latest=False,
+        limit=25,
+    ):
+        return self._track.get_entities(
+            name=name,
+            categories=categories,
+            obj_ids=obj_ids,
+            sync=sync,
+            exact=exact,
+            version=version,
+            instantiated_after=instantiated_after,
+            instantiated_before=instantiated_before,
+            latest=latest,
+            limit=limit,
+        )
+
+    def get_entity(
+        self,
+        name=None,
+        category=None,
+        obj_id=None,
+        sync=True,
+        exact=True,
+        version=None,
+        instantiated_after=None,
+        instantiated_before=None,
+        latest=False,
+    ):
+        return self._track.get_entity(
             name=name,
             category=category,
+            obj_id=obj_id,
+            sync=sync,
+            exact=exact,
+            version=version,
+            instantiated_after=instantiated_after,
+            instantiated_before=instantiated_before,
+            latest=latest,
         )
-        results = self._get(connection, entity_ids, sync)
-        connection.close()
-        return results
 
     def get_descendents(self, entities, sync=True):
-        """Get entities based on specified criteria."""
-        connection = self.open()
-        entity_ids = connection.queries.get_descendents(
+        return self._track.get_descendents(
             entities=entities,
+            sync=sync,
         )
-        results = self._get(connection, entity_ids, sync)
-        connection.close()
-        return results
 
-    def add_entities(self, entities):
-        added = self.objects.add(entities)
-        self._broadcaster(SystemMessage.ADDED, added)
-        return added
-
-    def remove_entities(self, entities):
-        removed = self.objects.remove(entities)
-        self._broadcaster(SystemMessage.REMOVED, removed)
-        return removed
+    # creation
 
     def create_model(self, object_type=None, **kwargs):
-        """
-        Create and add a new model instance to the DOM.
-        Passes kwargs to constructor.
-        """
-        if object_type is None:
-            object_type = rmtc.track.Model
-        if not issubclass(object_type, rmtc.track.Model):
-            raise rmtc.system.RMTCException(
-                f"Subclass {object_type} in create is invalid"
-            )
-        if not self._factory.is_registered_type_class(object_type):
-            raise rmtc.system.RMTCException(f"Subclass {object_type} is not registered")
-
-        model = object_type(**kwargs)
-        self.add_entities([model])
-        return model
+        return self._track.create_model(object_type=object_type, **kwargs)
 
     def create_dataset(self, object_type=None, **kwargs):
-        """
-        Create and add a new dataset instance to the objects store.
-        Passes kwargs to constructor.
-        """
-        if object_type is None:
-            object_type = rmtc.track.Dataset
-        if not issubclass(object_type, rmtc.track.Dataset):
-            raise rmtc.system.RMTCException(
-                f"Subclass {object_type} in create is invalid"
-            )
-        if not self._factory.is_registered_type_class(object_type):
-            raise rmtc.system.RMTCException(f"Subclass {object_type} is not registered")
-        dataset = object_type(**kwargs)
-        self.add_entities([dataset])
-        return dataset
+        return self._track.create_dataset(object_type=object_type, **kwargs)
 
     def create_license(self, object_type=None, **kwargs):
-        """
-        Create and add a new license instance to the object store.
-        Passes kwargs to constructor.
-        """
-        if object_type is None:
-            object_type = rmtc.track.License
-        if not issubclass(object_type, rmtc.track.License):
-            raise rmtc.system.RMTCException(
-                f"Subclass {object_type} in create is invalid"
-            )
-        if not self._factory.is_registered_type_class(object_type):
-            raise rmtc.system.RMTCException(f"Subclass {object_type} is not registered")
-        new_license = object_type(**kwargs)
-        self.add_entities([new_license])
-        return new_license
+        return self._track.create_license(object_type=object_type, **kwargs)
+
+    def create_resource(self, object_type=None, **kwargs):
+        return self._track.create_resource(object_type=object_type, **kwargs)
 
     def create_asset(self, object_type=None, **kwargs):
-        if object_type is None:
-            object_type = rmtc.track.Asset
-        if not issubclass(object_type, rmtc.track.Asset):
-            raise rmtc.system.RMTCException(
-                f"Subclass {object_type} in create is invalid"
-            )
-        if not self._factory.is_registered_type_class(object_type):
-            raise rmtc.system.RMTCException(f"Subclass {object_type} is not registered")
-        new_asset = object_type(**kwargs)
-        self.add_entities([new_asset])
-        return new_asset
+        return self._track.create_asset(object_type=object_type, **kwargs)
 
-    def create_group(self, items=None):
-        group = rmtc.track.Group(items=items)
-        self.add_entities([group])
-        return group
+    def create_weights(self, object_type=None, run=None, **kwargs):
+        return self._track.create_weights(object_type=object_type, run=run, **kwargs)
 
-    def create_weights(self, object_type=None, **kwargs):
-        if object_type is None:
-            object_type = rmtc.track.Weights
-        if not issubclass(object_type, rmtc.track.Weights):
-            raise rmtc.system.RMTCException(
-                f"Subclass {object_type} in create is invalid"
-            )
-        if not self._factory.is_registered_type_class(object_type):
-            raise rmtc.system.RMTCException(f"Subclass {object_type} is not registered")
-        weights = object_type(**kwargs)
-        self.add_entities([weights])
-        return weights
+    def create_checkpoint(self, object_type=None, run=None, **kwargs):
+        return self._track.create_checkpoint(object_type=object_type, run=run, **kwargs)
 
-    def create_run(self, solution, object_type=None, **kwargs):
-        """Create a run and add to objects"""
-        if object_type is None:
-            object_type = rmtc.track.Run
-        if not issubclass(object_type, rmtc.track.Run):
-            raise rmtc.system.RMTCException(
-                f"Subclass {object_type} in create is invalid"
-            )
-        if not self._factory.is_registered_type_class(object_type):
-            raise rmtc.system.RMTCException(f"Subclass {object_type} is not registered")
-        run = object_type(**kwargs)
-        run.solution = solution
-        self.add_entities([run])
+    def create_run(self, object_type=None, solution=None, **kwargs):
+        run = self._track.create_run(
+            solution=solution, object_type=object_type, **kwargs
+        )
+
         return run
 
     def create_solution(self, object_type=None, **kwargs):
-        """
-        Create and add a new solution instance to the object store.
-        Passes kwargs to constructor.
-        """
-        if object_type is None:
-            object_type = rmtc.track.Solution
-        if not issubclass(object_type, rmtc.track.Solution):
-            raise rmtc.system.RMTCException(
-                f"Subclass {object_type} in create is invalid"
-            )
-        if not self._factory.is_registered_type_class(object_type):
-            raise rmtc.system.RMTCException(f"Subclass {object_type} is not registered")
-        solution = object_type(**kwargs)
-        self.add_entities([solution])
-        return solution
+        return self._track.create_solution(object_type=object_type, **kwargs)
 
-    def create_inference(self, object_type=None, **kwargs):
-        if object_type is None:
-            object_type = rmtc.infer.Inference
-        if not issubclass(object_type, rmtc.track.Inference):
-            raise rmtc.system.RMTCException(
-                f"Subclass {object_type} in create is invalid"
-            )
-        if not self._factory.is_registered_type_class(object_type):
-            raise rmtc.system.RMTCException(f"Subclass {object_type} is not registered")
-        inference = object_type(**kwargs)
-        self.add_entities([inference])
-        return inference
+    def create_inference(self, session=None, object_type=None, **kwargs):
+        return self._track.create_inference(
+            object_type=object_type, session=session, **kwargs
+        )
 
-    def create_entity(self, object_type, **kwargs):
-        if not issubclass(object_type, rmtc.track.Entity):
-            raise rmtc.system.RMTCException(
-                f"Subclass {object_type} in create is invalid"
-            )
-        if not self._factory.is_registered_type_class(object_type):
-            raise rmtc.system.RMTCException(f"Subclass {object_type} is not registered")
-        entity = object_type(**kwargs)
-        self.add_entities([entity])
-        return entity
+    def create_entity(self, type_name, **kwargs):
+        return self._track.create_entity(type_name=type_name, **kwargs)
+
+    def create_group(self, items):
+        return self._track.create_group(items=items)
+
+    def create_rights(self, name):
+        return self._track.create_rights(name=name)
+
+    def create_party(self, name):
+        return self._track.create_party(name=name)
+
+    def create_jurisdiction(self, name):
+        return self._track.create_jurisdiction(name=name)
+
+    def create_session(self, object_type=None, **kwargs):
+        return self._track.create_session(object_type=object_type, **kwargs)
+
+    def get_create(self, object_type, name, **kwargs):
+        return self._track.get_create(object_type=object_type, name=name, **kwargs)
+
+    # operations
+
+    def create_scheduler(self, object_type=None, **kwargs):
+        if not issubclass(object_type, Scheduler):
+            raise RMTCException(f"Subclass {object_type} in create is invalid")
+        return object_type(**kwargs, rmtc_system=self)
+
+    def build(self, artifacts, pipeline_name):
+        return self._ops.build(artifacts, pipeline_name)
 
     def infer(
         self,
+        inputs,
+        solution,
         inferer,
-        scheduler=None,
+        scheduler,
+        model=None,
+        outputs=None,
+        session=None,
+        weights=None,
     ):
-        """
-        Execute inference using the provided inferer.
-        This also adds the inference to the object store.
-        """
+        # ensure scehduler is this
+        if scheduler.rmtc_system is not self:
+            raise RMTCException("Mismatched system for scheduler")
 
-        # TODO : make this work async with the scheduler
-        if scheduler is not None:
-            raise rmtc.system.RMTCException("Scheduler inference not implemented yet")
+        # HACK: backward compat
+        if isinstance(inputs, list):
+            inputs = inputs[0]
+            self.log.warning("Taking first element of inputs for infer")
+        if isinstance(outputs, list):
+            outputs = outputs[0]
+            self.log.warning("Taking first element of outputs for infer")
 
-        # create name
-        name = "Inference " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # run inference
+        inference = self._ops.infer(
+            solution=solution,
+            inferer=inferer,
+            model=model,
+            inputs=inputs,
+            outputs=outputs,
+            scheduler=scheduler,
+            weights=weights,
+        )
 
-        # TODO : move this to a local scheduler
-        inferer.asset_manager = self.asset_manager
-        inferer.env_manager = self.env_manager
-        inference = inferer()
-        if inference is not None:
-            self.add_entities([inference])
-        inference.name = name
-        self.asset_manager.write([inference.result])
-        self._broadcaster(SystemMessage.INFERRING, [inference])
+        # add to inference sessions
+        if session is not None:
+            session.add_inferences([inference])
 
-        # return
+        # push to RMTC
+        self.push()
+
         return inference
 
     def train(
@@ -661,64 +699,83 @@ class System:
         trainer,
         model,
         dataset,
-        scheduler=None,
-        checkpoints=None,
+        scheduler,
+        checkpoint=None,
     ):
-        """
-        Execute a training run, adds the run to the given solution and
-        kicks off the training. The operation is blocking and waits until the
-        scheduler has completed.
-        """
+        # ensure scehduler is this
+        if scheduler.rmtc_system is not self:
+            raise RMTCException("Mismatched system for scheduler")
 
-        # TODO : construct a scheduler
-        if scheduler is None:
-            raise rmtc.system.RMTCException(
-                "Scheduler free training not implemented yet"
-            )
+        # HACK: backward compat
+        if isinstance(dataset, list):
+            dataset = dataset[0]
+            self.log.warning("Taking first element of dataset for train")
 
-        # create name
-        name = "Run " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # setup
-        run = rmtc.train.Run(
-            name=name,
+        # use local if empty
+        run = self._ops.train(
+            solution=solution,
+            trainer=trainer,
             model=model,
             dataset=dataset,
-            checkpoints=checkpoints,
-            trainer=trainer,
-            solution=solution,
+            scheduler=scheduler,
+            checkpoint=checkpoint,
         )
-        scheduler.tracker = self.tracker
-        scheduler.run = run
-        scheduler.asset_manager = self.asset_manager
-        scheduler.env_manager = self.env_manager
 
-        # connect the references - the solution includes these
-        solution.add_models([model])
-        solution.add_datasets([dataset])
-        self.add_entities([model, dataset, run])
+        # push to RMTC
+        self.push()
 
-        # TODO : make this work async
-        scheduler()
-        scheduler.join()
-
-        self._broadcaster(SystemMessage.TRAINING, [run])
-
-        # return
         return run
 
-    def create_report(self, report, entity_names):
-        report_instance = report(system=self)
-        entities = []
-        for name in entity_names:
-            entities.extend(self.get_entities(name=name))
-        return report_instance(entities)
+    def read(self, artifacts, metadata=None):
+        return self._ops.asset_manager.read(artifacts, metadata=metadata)
 
-    def get_best_run(self, solution):
-        best_run = None
-        runs = self.get_runs(solution=solution)
-        for run in runs:
-            if run.status == rmtc.track.RunStatus.FINISHED:
-                if best_run is None or run.metric < best_run.metric:
-                    best_run = run
-        return best_run
+    def write(self, artifacts, **kwargs):
+        return self._ops.asset_manager.write(artifacts, **kwargs)
+
+    def init(self, artifacts):
+        return self._ops.asset_manager.init(artifacts)
+
+    def reset(self, artifacts):
+        return self._ops.asset_manager.reset(artifacts)
+
+    def create_uri(self, artifact, root=None, **kwargs):
+        return self._ops.asset_manager.create_uri(artifact, root=root, **kwargs)
+
+    def identity_mode(self, mode):
+        return self._ops.asset_manager.identity_mode(mode)
+
+    def manage_versions_with_publisher(self, use_for_versioning):
+        return self._ops.asset_manager.manage_versions_with_publisher(
+            use_for_versioning
+        )
+
+    def default_name(self, entity):
+        return self._ops.asset_manager.default_name(entity)
+
+    def purge(self, solution, category):
+        return self._ops.purge(solution, category)
+
+    # tracing
+
+    def trace_report(self, report, entities):
+        return self._track.trace_report(report=report, entities=entities)
+
+    def trace_sources(
+        self,
+        entity,
+        recurse=True,
+    ):
+        return self._track.trace_sources(
+            entity=entity,
+            recurse=recurse,
+        )
+
+    def trace_derivatives(
+        self,
+        entity,
+        recurse=True,
+    ):
+        return self._track.trace_derivatives(
+            entity=entity,
+            recurse=recurse,
+        )

@@ -17,6 +17,7 @@ install/
 CMakeFiles/
 .lock-waf*
 rmtc-setup.sh
+__pycache__
 
 # Ignore pytest
 .pytest_cache

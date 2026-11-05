@@ -1,0 +1,121 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+# RMTC factory registration white list
+
+# Config metadata
+_type:            module
+_version:         1.0.0
+_name:            rmtc_track
+
+Model:
+  Model:
+    version:      1.0.0
+    description:  Tracked Model
+    class_path:   rmtc.track.entities.Model
+
+Permission:
+  Permission:
+    version:      1.0.0
+    description:  Tracked Permission
+    class_path:   rmtc.track.entities.Permission
+
+Dataset:
+  TrackedDataset:
+    version:      1.0.0
+    description:  Tracked Dataset
+    class_path:   rmtc.track.entities.Dataset
+
+License:
+  License:
+    version:      1.0.0
+    description:  Tracked License
+    class_path:   rmtc.track.entities.License
+
+Tag:
+  Tag:
+    version:      1.0.0
+    class_path:   rmtc.track.entities.Tag
+
+Resource:
+  Resource:
+    version:      1.0.0
+    description:  Tracked Resource
+    class_path:   rmtc.track.entities.Resource
+
+Run:
+  TrackedRun:
+    version:      1.0.0
+    description:  Tracked Run
+    class_path:   rmtc.track.entities.Run
+
+Solution:
+  TrackedSolution:
+    version:      1.0.0
+    description:  Tracked Solution
+    class_path:   rmtc.track.entities.Solution
+
+Inference:
+  TrackedInference:
+    version:      1.0.0
+    description:  Tracked Inference
+    class_path:   rmtc.track.entities.Inference
+
+Group:
+  Group:
+    description:  Tracked Group
+    version:      1.0.0
+    class_path:   rmtc.track.entities.Group
+
+Asset:
+  TrackedAsset:
+    version:      1.0.0
+    description:  Tracked Asset
+    class_path:   rmtc.track.entities.Asset
+    abstract:     True
+
+Weights:
+  Weights:
+    version:      1.0.0
+    description:  Tracked Weights
+    class_path:   rmtc.track.entities.Weights
+
+Checkpoint:
+  Checkpoint:
+    version:      1.0.0
+    description:  Tracked Checkpoint
+    class_path:   rmtc.track.entities.Checkpoint
+
+Filter:
+  Filter:
+    version:      1.0.0
+    class_path:   rmtc.track.entities.Filter
+    abstract:     True   
+  Stack:
+    version:      1.0.0
+    class_path:   rmtc.track.filters.StackFilter
+
+Right:
+  Right:
+    version:      1.0.0
+    description:  Tracked Right
+    class_path:   rmtc.track.entities.Right
+
+Jurisdiction:
+  Jurisdiction:
+    version:      1.0.0
+    description:  Tracked Jurisdiction
+    class_path:   rmtc.track.entities.Jurisdiction
+    
+Party:
+  Party:
+    version:      1.0.0
+    description:  Tracked Party
+    class_path:   rmtc.track.entities.Party
+
+Session:
+  Session:
+    version:      1.0.0
+    description:  Tracked Session
+    class_path:   rmtc.track.entities.Session
+

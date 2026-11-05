@@ -23,6 +23,7 @@ set(PYTHON_LIB_INSTALL_DIR  "${INSTALL_HOME}/lib/${PYTHON_INSTALL_DIR}")
 set(RESOURCES_INSTALL_DIR   "${INSTALL_HOME}/res")
 set(CONFIG_INSTALL_DIR      "${INSTALL_HOME}/res/config")
 set(SCRIPTS_INSTALL_DIR     "${INSTALL_HOME}")
+set(CONFIG_NAME             "dev")
 
 # Find the python files and the lib files over
 install(DIRECTORY ${PYTHON_LIB_SRC_DIR}
@@ -56,3 +57,4 @@ file(GLOB SCRIPTS "${CMAKE_BINARY_DIR}/rmtc-setup.*")
 install(PROGRAMS ${SCRIPTS}
     DESTINATION ${SCRIPTS_INSTALL_DIR}
 )
+

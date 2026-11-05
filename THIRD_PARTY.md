@@ -9,7 +9,7 @@ This project uses the following third-party libraries:
 | Packaging | 25.0 | Apache-2.0, BSD-2-Clause | https://pypi.org/project/packaging |
 | Yaml | 6.0.1 | MIT | https://pyyaml.org |
 | Numpy | 1.23.0 | Modified BSD License | https://numpy.org |
-| OpenImageIO | 2.2.16.0 | Apache-2.0 | https://github.com/AcademySoftwareFoundation/OpenImageIO |
+| OpenImageIO | 2.2.16.0 | Apache-2.0 | https://github.com/ |AcademySoftwareFoundation/OpenImageIO |
 | Flask | 3.1.0 | BSD-3-Clause | https://flask.palletsprojects.com |
 | Requests | 2.28.0 | Apache-2.0 | https://github.com/psf/requests |
 | PyTorch | 2.1.0 | BSD-3-Clause | https://github.com/pytorch/pytorch |
@@ -22,5 +22,6 @@ This project uses the following third-party libraries:
 | Neo4j Driver | 4.4.10 | Apache-2.0 | https://github.com/neo4j/neo4j-python-driver |
 | Apache AGE Driver | 0.0.7 | Apache-2.0 | https://github.com/apache/age/tree/master/drivers/python |
 | NodeGraphQt | 0.6.38 | MIT | https://github.com/jchanvfx/NodeGraphQt |
-| PySide | 2.5.15.2 | LGPL-3.0 | https://github.com/pyside |
-| Qt | 2.5.15.2 | LGPL-3.0 | https://www.qt.io/development/qt-framework/qt-licensing |
+| PySide | 5.15.2 | LGPL-3.0 | https://github.com/pyside |
+| Qt | 5.15.2 | LGPL-3.0 | https://www.qt.io/development/qt-framework/qt-licensing |
+| Nuke | 13.1 | Commercial | https://www.foundry.com/products/nuke-family/nuke |

@@ -9,26 +9,50 @@ _version:       1.0.0
 _name:          rmtc
 
 rmtc_system:
-  jit_sync:     true
-  mode:         DEVELOPMENT
+  mode:         TESTING
 
-# Credentials and URI match the Apache AGE service container defined in the CI workflow files.
-# Do not change these without updating the corresponding workflow service definitions.
 rmtc_store:
-  type:         age
-  username:     postgres
-  password:     postgres
+  type_name:    rmtc_core.Store.AGE-1.0.0
   uri:          postgres://localhost:5432
-  name:         postgresDB
-
-  # Show/project mapping (store name: project code(s))
-  store_map:
-    rmtc_example:
-      - show
+  name:         test
+  db_name:      postgresDB
+  immutable:    false
+  limit:        25
+  timeout:      6000
 
 rmtc_tracker:
-  uri:          ./rmtc_tracker_storage  # write TensorBoard logs to a local temp dir on the CI runner
+  type_name:    rmtc_core.Tracker.TensorBoard-1.0.0
+  uri:          file:./rmtc_tracker_storage
 
 rmtc_log:
-  type_name:    logger
-  level:        DEBUG                   # verbose logging to aid CI failure diagnosis
+  type_name:    rmtc_sys.Logger.Logger-1.0.0
+  level:        INFO
+
+rmtc_asset_manager:
+  type_name:    rmtc_ops.AssetManager.AssetManager-1.0.0
+
+rmtc_publisher:
+  type_name:    rmtc_core.Publisher.DiskPublisher-1.0.0
+  immutable:    false
+  root:         "/"
+
+rmtc_readerwriter:
+  type_name:    rmtc_core.ReaderWriter.DiskReaderWriter-1.0.0
+  immutable:    false
+  root:         "/"
+
+rmtc_pipelines:
+  Nuke:
+    - type_name:  rmtc_core.Builder.CATBuilder-1.0.0
+    - type_name:  rmtc_core.Builder.TorchScriptBuilder-1.0.0
+  Houdini:
+    - type_name:  rmtc_core.Builder.ONNXBuilder-1.0.0
+
+rmtc_objects:
+  type_name:    rmtc_sys.Objects.Objects-1.0.0
+
+rmtc_env_manager:
+  type_name:    rmtc_core.EnvManager.PackageTracker-1.0.0
+
+rmtc_jit:
+  type_name:    rmtc_sys.JIT.Sync-1.0.0

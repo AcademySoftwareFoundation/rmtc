@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+# RMTC factory registration white list
+
+# Config metadata
+_type:            module
+_version:         1.0.0
+_name:            rmtc_sys
+
+JIT:
+  Sync:
+    version:      1.0.0
+    description:  Just in time storc Sync
+    class_path:   rmtc.track.store.Sync
+
+Logger:
+  Logger:
+    version:      1.0.0
+    description:  Basic Python Log
+    class_path:   rmtc.system.Logger
+
+Objects:
+  Objects:
+    version:      1.0.0
+    description:  Basic Object Manager
+    class_path:   rmtc.system.objects.Objects

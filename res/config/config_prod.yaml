@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+# RMTC system config
+
+# Config metadata
+_type:          config
+_version:       1.0.0
+_name:          prod
+
+rmtc_system:
+  mode:         PRODUCTION
+
+rmtc_store:
+  type_name:    rmtc_core.Store.Neo4j-1.0.0
+  name:         rmtc_demo
+  uri:          bolt://neo4j.demo.com:1234
+  immutable:    true
+  limit:        25
+  timeout:      6000
+
+rmtc_tracker:
+  type_name:    rmtc_core.Tracker.TensorBoard-1.0.0
+  uri:          file://localhost/proj/mcl/assets/rmtc/GEN/tracker/demo
+
+rmtc_log:
+  type_name:    rmtc_sys.Logger.Logger-1.0.0
+  level:        INFO
+
+rmtc_asset_manager:
+  type_name:    rmtc_ops.AssetManager.AssetManager-1.0.0
+  immutable:    true
+  root:         "/"
+
+rmtc_pipelines:
+  Nuke:
+    - type_name:  rmtc_core.Builder.CATBuilder-1.0.0
+    - type_name:  rmtc_core.Builder.ONNXBuilder-1.0.0
+  Houdini:
+    - type_name:  rmtc_core.Builder.ONNXBuilder-1.0.0
+
+rmtc_objects:
+  type_name:    rmtc_sys.Objects.Objects-1.0.0
+
+rmtc_env_manager:
+  type_name:    rmtc_core.EnvManager.PackageTracker-1.0.0
+
+rmtc_jit:
+  type_name:    rmtc_sys.JIT.Sync-1.0.0

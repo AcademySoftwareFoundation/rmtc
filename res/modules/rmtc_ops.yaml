@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+# RMTC factory registration white list
+
+# Config metadata
+_type:            module
+_version:         1.0.0
+_name:            rmtc_ops
+
+Dataset:
+  Dataset:
+    version:      1.0.0
+    description:  Dataset
+    class_path:   rmtc.ops.artifacts.Dataset
+  Aggregation:
+    version:      1.0.0
+    description:  Dataset of Dataset Columns
+    class_path:   rmtc.ops.artifacts.Aggregation
+
+Process:
+  Stack:        
+    version:      1.0.0
+    class_path:   rmtc.ops.process.ProcessStack 
+  Bypass:
+    version:      1.0.0
+    class_path:   rmtc.ops.process.ProcessBypass 
+  Inverter:    
+    version:      1.0.0
+    class_path:   rmtc.ops.process.ProcessInverter 
+
+Packager:
+  Stack:        
+    version:      1.0.0
+    class_path:   rmtc.ops.process.PackagerStack 
+  Process:
+    version:      1.0.0
+    class_path:   rmtc.ops.process.ProcessPackager 
+
+Run:
+  Run:
+    version:      1.0.0
+    class_path:   rmtc.ops.train.Run
+
+Solution:
+  Solution:
+    version:      1.0.0
+    description:  Train Solution
+    class_path:   rmtc.ops.train.Solution
+
+
+Inference:
+  Inference:
+    version:      1.0.0
+    class_path:   rmtc.ops.infer.Inference
+
+
+Asset:
+  Asset:
+    version:      1.0.0
+    class_path:   rmtc.ops.artifacts.Asset
+    abstract:     True    
+  Image:
+    version:      1.0.0
+    class_path:   rmtc.ops.assets.Image
+  Value:
+    version:      1.0.0
+    description:  Float Value
+    class_path:   rmtc.ops.assets.Value    
+  Values:
+    version:      1.0.0
+    description:  Float Values Array
+    class_path:   rmtc.ops.assets.Values
+  Label:
+    version:      1.0.0
+    description:  String Label
+    class_path:   rmtc.ops.assets.Label        
+  Labels:
+    version:      1.0.0
+    description:  String Array
+    class_path:   rmtc.ops.assets.Labels    
+  Mesh:
+    version:      1.0.0
+    class_path:   rmtc.ops.assets.Mesh
+  Camera:
+    version:      1.0.0
+    class_path:   rmtc.ops.assets.Camera
+  Skeleton:
+    version:      1.0.0
+    class_path:   rmtc.ops.assets.Skeleton
+  Pose:
+    version:      1.0.0
+    class_path:   rmtc.ops.assets.Pose
+
+IO:
+  AggregationIO:
+    version:      1.0.0
+    description:  Dataset of Dataset IOs
+    class_path:   rmtc.ops.artifacts.AggregationIO
+
+AssetManager:
+  AssetManager:
+    version:      1.0.0
+    description:  Asset manager with delegated publisher/readerwwriter
+    class_path:   rmtc.ops.pipeline.AssetManager

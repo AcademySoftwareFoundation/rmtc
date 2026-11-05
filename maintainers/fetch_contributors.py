@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     '--repo',
     required=True,
-    help='GitHub Project/Repo name. (e.g. "AcademySoftwareFoundation/aswf-sample-project")'
+    help='GitHub Project/Repo name. (e.g. "AcademySoftwareFoundation/aswf-sample-context")'
 )
 parser.add_argument(
     '--token',

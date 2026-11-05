@@ -1,65 +1,50 @@
 # Image2Mask Example
 
-This is an example of how to refine a foundational image to mask model on shot data, trained on your local machine with the best training session used to process an additional set of images.
+This is an example of how to train an image-to-mask model - taking a plate image in and producing a mask, tracking the model, dataset and run through RMTC.
 
 ## Requirements
 - RMTC storage system setup
-- A foundational model that has been exported as a pytorch package with all dependencies interned
-- A folder of paired EXRs which are color to mask correlates, interleaved in alphanumeric order
-- A folder of color EXRs to infer against
 - Valid config path in env
-
-The foundational model assumes a ImageNet/PyTorch tensor format, the process stack reflects this:
-- BCHW Float32 contiguous
-- Input is ResNet Normalized RGB
-- Output is Unormalized Mono
-
-Packaging the model can be done through the `rmtc_core.artifacts.io.models.torch.TorchPackage.package_model`. The aim is to 'assetize' the python class into a pipelinable file.
+- A pre-packaged PyTorch image-to-image model (pickled)
+- A folder of correlated EXR plate/mask pairs
 
 ## Execution
-Run the create artifacts script first - to create the datasets and models. Run local train to run the regressor on your local machine. Run best infer to find the best run and evaluate against the input EXR images.
 
-Once ran you can explore the results in rmtc-gui.
-
-### Go to rmtc examples directory
+### Go to the image2mask examples directory
 ```bash
-cd /path/to/examples
+cd /path/to/examples/image2mask
 ```
 
-### Create all the artefacts in the DB
+### Create and track the model and solution
 ```bash
-python 00_create_artifacts.py \
-    --model_name=<name of model> \
-    --model_path=/path/to/model/pytorch \
-    --model_package=<pytorch package name> \
-    --model_class_name=<pytorch class name> \
-    --model_type=CLASSIFICATION \
-    --dataset_path=/path/to/interleaved/exrs \
-    --dataset_name=<dataset name> \
-    --solution_path=/path/to/location/to/save/checkpoints/weights \
-    --solution_name=<name of solution>
+python example_00_create_artifacts.py \
+    --model_path=/path/to/model.pt \
+    --model_name="Test Model" \
+    --model_class_name=Model \
+    --model_package=model.pkl \
+    --solution_name="Test Solution" \
+    --solution_path=/path/to/solution
 ```
 
-### Run a local regression training system
+### Train the model against a dataset
 ```bash
-python 01_local_train.py \
-    --model=<name of model> \
-    --dataset=<dataset name> \
-    --solution=<name of solution>
+python example_01_local_train.py \
+    --model="Test Model" \
+    --dataset_name="Test Dataset" \
+    --dataset_path=/path/to/correlated/exrs \
+    --solution_name="Test Solution" \
+    --tracker_path=/path/to/tensorboard/run
 ```
 
-### Get the solution, find best run and run inference
+### Run inference using the best run for the solution
 ```bash
-python 02_best_infer.py \
-    --results_path=/path/to/place/to/output/result \
-    --input_path=/path/to/folder/of/input/exrs \
-    --solution=<name of solution>
+python example_02_best_infer.py \
+    --inputs_path=/path/to/input/images \
+    --outputs_path=/path/to/write/masks \
+    --solution_name="Test Solution"
 ```
 
-### Open the explorer
+### Explore the resulting population
 ```bash
-rmtc-gui&
+rmtcgui&
 ```
-
-
-

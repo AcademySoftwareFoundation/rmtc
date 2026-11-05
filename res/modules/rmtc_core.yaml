@@ -1,0 +1,406 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+# RMTC factory registration white list
+
+# Config metadata
+_type:            module
+_version:         1.0.0
+_name:            rmtc_core
+
+Model:
+  TorchModel:
+    version:      1.0.0
+    description:  Torch Model
+    class_path:   rmtc.core.ops.artifacts.torch.models.TorchModel
+  ONNXModel:
+    version:      1.0.0
+    description:  ONNX Model
+    class_path:   rmtc.core.ops.artifacts.onnx.models.ONNXModel
+
+Checkpoint:
+  TorchCheckpoint:
+    version:      1.0.0  
+    description:  Torch Checkpoint
+    class_path:   rmtc.core.ops.artifacts.torch.checkpoints.TorchCheckpoint
+
+Trainer:
+  TorchRegression:
+    version:      1.0.0
+    description:  Simple Torch Regression
+    class_path:   rmtc.core.ops.train.torch.trainers.TorchRegression
+
+License:
+  OSS:
+    description:  Generic OSS License
+    version:      1.0.0
+    class_path:   rmtc.core.track.entities.licenses.community.OSS  
+  Patent:
+    description:  Patent License
+    version:      1.0.0
+    class_path:   rmtc.core.track.entities.licenses.commercial.Patent  
+  Show:
+    description:  Show License
+    version:      1.0.0
+    class_path:   rmtc.core.track.entities.licenses.commercial.Show
+  Agreement:
+    description:  Commercial Agreement
+    version:      1.0.0
+    class_path:   rmtc.core.track.entities.licenses.commercial.Agreement  
+
+Weights:
+  TorchWeights:
+    version:      1.0.0
+    description:  Torch Weights
+    class_path:   rmtc.core.ops.artifacts.torch.weights.TorchWeights
+
+Packager:
+  Batch:
+    version:      1.0.0
+    description:  Batch Tensors
+    class_path:   rmtc.core.ops.process.packagers.tensor.Batch    
+  Unbatch:
+    version:      1.0.0
+    description:  Unbatch Tensors
+    class_path:   rmtc.core.ops.process.packagers.tensor.Unbatch        
+  Split:
+    version:      1.0.0
+    description:  Split Tensors
+    class_path:   rmtc.core.ops.process.packagers.tensor.Split        
+  Cat:
+    version:      1.0.0
+    description:  Cat Tensors
+    class_path:   rmtc.core.ops.process.packagers.tensor.Cat    
+  Append:
+    version:      1.0.0
+    description:  Append Tensors
+    class_path:   rmtc.core.ops.process.packagers.tensor.Append    
+  Pop:
+    version:      1.0.0
+    description:  Pop Tensors
+    class_path:   rmtc.core.ops.process.packagers.tensor.Pop    
+  BatchedTorchTensor:
+    version:      1.0.0
+    description:  Batched Single Torch Tensor
+    class_path:   rmtc.core.ops.process.torch.packagers.tensor.BatchedTorchTensor    
+  TorchTensor:
+    version:      1.0.0
+    description:  Single Torch Tensor
+    class_path:   rmtc.core.ops.process.torch.packagers.tensor.TorchTensor  
+
+Process:
+
+  # Tensor Structure
+  Contiguous:        
+    description:  Contiguous
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.tensor.structure.Contiguous
+  DataType:        
+    description:  DataType
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.tensor.structure.DataType    
+  Batch:
+    description:  Tensor Batching
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.tensor.structure.Batch
+
+  # Image Color
+  LinearToSRGB:
+    description:  Linear to sRGB
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.color.LinearToSRGB
+  LinearNormalize:
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.color.LinearNormalize
+  StatsNormalize:
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.color.StatsNormalize
+  MakeMonochrome:
+    description:  Make Monochrome
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.color.MakeMonochrome
+
+  # Image Channels
+  MoveChannelsFirst:
+    description:  Move Channels First
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.channels.MoveChannelsFirst
+  TrimAlpha:
+    description:  Trim Alpha Channel
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.channels.TrimAlpha
+  AddChannel:
+    description:  Add a Channel
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.channels.AddChannel    
+  ExpandChannel:
+    description:  Repeat a Channel
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.channels.ExpandChannel
+  ExtractChannel:
+    description:  Extract Channel
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.channels.ExtractChannel    
+  SwapWidthHeight:
+    description:  Swap Width For Height
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.channels.SwapWidthHeight
+  Shuffle:
+    description:  Reorder the RGBA channels
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.channels.Shuffle
+  Flip:
+    description:  Flip RGB channels only -> BGR
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.channels.Flip
+
+  # Image Transform
+  Rotate:
+    description:  Rotate image
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.transform.Rotate
+  Translate:
+    description:  Translate image
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.transform.Translate
+  Scale:
+    description:  Scale image
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.transform.Scale
+  Flip:
+    description:  Flip image about the vertical, horizontal, or both axes
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.transform.Flip
+  Resize:
+    description:  Resize image
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.transform.Resize    
+  Crop:
+    description:  Crop image
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.transform.Crop    
+  Align:
+    description:  Align an image to a boundary pixel size
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.transform.Align
+  Pad:
+    description:  Pad an image to a specific size
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.transform.Pad
+
+  # Common format conversions
+  TorchvisionFormat:
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.conversions.TorchvisionFormat    
+  PyTorchFormat:
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.conversions.PyTorchFormat    
+  KerasFormat:
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.conversions.KerasFormat    
+  OpenCVFormat:
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.conversions.OpenCVFormat    
+  OIIOFormat:
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.conversions.OIIOFormat    
+  TensorflowFormat:
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.conversions.TensorflowFormat    
+  ONNXFormat:
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.image.conversions.ONNXFormat
+
+  # Camera
+  ConvertAperture:        
+    description:  Convert an aperture units - usualy to mm
+    version:      1.0.0
+    class_path:   rmtc.core.ops.process.camera.intrinsics.ConvertAperture
+
+Dataset:
+
+  # Structure
+  MappedAssets:
+    description:  Mapped Asset Dataset
+    version:      1.0.0
+    class_path:   rmtc.core.ops.artifacts.structured.datasets.MappedAssets
+
+Inferer:
+
+  DatasetInferer:
+    description:  Dataset Inferencing
+    version:      1.0.0
+    class_path:   rmtc.core.ops.infer.simple.inferers.DatasetInferer
+  BatchedInferer:
+    description:  Infer & write in batches
+    version:      1.0.0
+    class_path:   rmtc.core.ops.infer.simple.inferers.BatchedInferer
+
+IO:
+
+  # Assets
+  EXR:
+    description:  EXR File IO
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.oiio.image.EXR
+  JPG:
+    description:  JPG File IO
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.oiio.image.JPG
+  PNG:
+    description:  PNG File IO
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.oiio.image.PNG
+  TensorJSONFile:
+    description:  JSON Tensors File IO
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.filesystem.json.TensorJSONFile    
+  ValuesJSONFile:
+    description:  JSON Values File IO
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.filesystem.json.ValuesJSONFile
+  AssetValuesJSONFile:
+    version:      1.0.0
+    description:  JSON Asset to Values File IO
+    class_path:   rmtc.core.ops.io.filesystem.json.AssetValuesJSONFile
+
+  # USD
+  USDCamera:
+    version:      1.0.0
+    description:  USD camera data
+    class_path:   rmtc.core.ops.io.usd.camera.USDCamera
+  USDCameraSequence:
+    version:      1.0.0
+    description:  USD camera data
+    class_path:   rmtc.core.ops.io.usd.camera.USDCameraSequence
+
+  # Torch
+  TorchCheckpointFile:
+    description:  Torch Checkpoint PT File
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.torch.checkpoints.TorchCheckpointFile
+  TorchWeightsFile:
+    description:  Torch Weights PT File
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.torch.weights.TorchWeightsFile  
+  TorchPackage:
+    description:  Torch Package PT File
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.torch.models.TorchPackage  
+  TorchScript:
+    description:  Torch Script PT File
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.torch.models.TorchScript
+    
+  # Datasets
+  CorrelatedFolder:
+    description:  Interleaved Asset Folder IO
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.filesystem.folders.CorrelatedFolderIO
+  Folder:
+    description:  Asset Folder IO
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.filesystem.folders.FolderIO
+
+  # ONNX
+  ONNXSessionFile:
+    description:  ONNX Session File IO
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.onnx.models.ONNXSessionFile
+  ONNXModelFile:
+    description:  ONNX Model File IO
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.onnx.models.ONNXModelFile
+
+  # Safetensors
+  SafetensorsTorchWeightsFile:
+    description:  Safetensors Model Weights File IO
+    version:      1.0.0
+    class_path:   rmtc.core.ops.io.safetensors.weights.SafetensorsTorchWeightsFile
+
+# Filters
+Filter:
+  Logic:
+    version:      1.0.0
+    class_path:   rmtc.core.track.filters.logic.LogicFilter
+  Truth:
+    version:      1.0.0
+    class_path:   rmtc.core.track.filters.logic.TruthFilter
+  Rights:
+    version:      1.0.0
+    class_path:   rmtc.core.track.filters.license.RightsFilter
+  Compliance:
+    version:      1.0.0
+    class_path:   rmtc.core.track.filters.license.ComplianceFilter
+    
+# Storage
+Store:
+  Neo4j:
+    version:      1.0.0
+    description:  Neo4j Graph Database
+    class_path:   rmtc.core.track.store.cypher.neo4j.Neo4jDatabase
+  AGE:
+    version:      1.0.0
+    description:  Apache AGE Database
+    class_path:   rmtc.core.track.store.cypher.age.AGEDatabase
+  JSON:
+    version:      1.0.0
+    description:  JSON file
+    class_path:   rmtc.core.track.store.filesystem.json.JSONFile
+
+# Tracking
+Tracker:
+  TensorBoard:
+    version:      1.0.0
+    description:  Tensorboard training tracker
+    class_path:   rmtc.core.ops.scheduling.torch.trackers.TensorBoard
+
+# Env managers
+EnvManager:
+  PackageTracker:
+    version:      1.0.0
+    description:  Package logging & tracking
+    class_path:   rmtc.core.system.environment.packages.PackageTracker
+  UV:
+    version:      1.0.0
+    description:  UV Environments
+    class_path:   rmtc.core.system.environment.uv.UV
+
+# Builders
+Builder:
+  ONNXBuilder:
+    version:      1.0.0
+    descrption:   Build ONNX models from model & weights
+    class_path:   rmtc.core.ops.pipeline.onnx.builders.ONNXBuilder
+  CATBuilder:
+    version:      1.0.0
+    descrption:   Build CAT models from model & weights
+    class_path:   rmtc.core.ops.pipeline.nuke.builders.CATBuilder
+  TorchScriptBuilder:
+    version:      1.0.0
+    descrption:   Build TS models from model & weights
+    class_path:   rmtc.core.ops.pipeline.torch.builders.TorchScriptBuilder
+
+# Read & Write
+ReaderWriter:
+  DiskReaderWriter:
+    version:      1.0.0
+    description:  Filesystem disk access
+    class_path:   rmtc.core.ops.pipeline.readerwriters.filesystem.DiskReaderWriter
+
+# Publisher
+Publisher:
+  DiskPublisher:
+    version:      1.0.0
+    description:  Filesystem disk asset publisher
+    class_path:   rmtc.core.track.publishing.publishers.filesystem.DiskPublisher
+
+Scheduler:
+  LocalScheduler:
+    version:      1.0.0
+    description:  In process scheduler
+    class_path:   rmtc.core.ops.scheduling.local.schedulers.LocalScheduler
+  WorkerScheduler:
+    version:      1.0.0
+    description:  Sub process scheduler
+    class_path:   rmtc.core.ops.scheduling.local.schedulers.WorkerScheduler

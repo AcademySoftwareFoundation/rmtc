@@ -1,33 +1,40 @@
-# Basic tracking example
+# Tracking Examples
 
-Simple tracking in the DB calls - no inference or training. Use this example to instrument your own training pipelines.
+Simple tracking DB calls - no inference or training. Use these examples to instrument your own training pipelines.
 
-The provenance report allows you to create a markdown report on the sources of a given named
-asset. The name is searched via a regex.
+The provenance report allows you to create a markdown report on the sources of a given named entity. The name is searched via a regex.
 
 ## Requirements
 - RMTC storage system setup
 - Valid config path in env
+- Credentials for the configured store
 
 ## Execution
 
-### Go to rmtc examples directory
+### Go to the tracking examples directory
 ```bash
-cd /path/to/examples
+cd /path/to/examples/tracking
 ```
 
-### Run tracking database population
-Raw storage calls do not use the config, pass the store URI that is from the config yaml
+### Populate the store using the System-level tracking API
+Creates licenses, a dataset, model, run, weights, checkpoints and inference, connecting to the store directly with the given credentials.
 ```bash
-python 00_tracking_only.py --store_uri="postgres://age.com:1234"
+python example_00_db_tracking.py --username=<username> --password=<password>
 ```
 
 ### Create a markdown provenance report
+Searches for entities matching the given name and builds a report tracing their sources.
 ```bash
-python 01_provenance_report.py --entity="Image"
+python example_01_provenance_report.py --entity="Apache-2.0"
+```
+
+### Populate the store using the lower-level Tracking object directly
+Equivalent population to example_00, but bypasses the System object and drives the `Tracking` class directly - useful if you want to integrate tracking into your own pipeline without adopting the rest of System.
+```bash
+python example_02_tracking.py --username=<username> --password=<password>
 ```
 
 ### Explore the resulting population
 ```bash
-rmtc-gui&
+rmtcgui&
 ```

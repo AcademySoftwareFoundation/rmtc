@@ -451,6 +451,7 @@ disable=raw-checker-failed,
         invalid-name,                     # opinion - terse math references are OK
         unnecessary-lambda,               # opinion
         unnecessary-lambda-assignment,    # opinion
+        import-outside-toplevel,          # late imports are a systemic feature
 
         # TODO : add docs
         missing-function-docstring,
@@ -481,6 +482,9 @@ disable=raw-checker-failed,
         abstract-method,
         super-init-not-called,
         
+        # This just spams constantly when using inheritance
+        unused-argument,
+
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
 # multiple time (only on the command line, not in the configuration file where
@@ -686,3 +690,4 @@ init-import=no
 # List of qualified module names which can have objects that can redefine
 # builtins.
 redefining-builtins-modules=six.moves,past.builtins,future.builtins,builtins,io
+
