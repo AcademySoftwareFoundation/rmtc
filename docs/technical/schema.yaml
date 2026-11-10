@@ -1,0 +1,1089 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+system:
+
+    # Datetime specifically represents ISO format strings
+    # In python this derives from datetime.datetime
+    # Local timezone is ignored - it is global UTC/Zulu datetime
+    Datetime:
+        string:
+            type: string
+
+    # Execution device/compute-context selector, used throughout ops for
+    # artifact placement (Weights.devices, Model.devices, Trainer.device, etc.)
+    Device:
+        INVALID: 0
+        CPU: 1
+        GPU: 2
+        TPU: 3
+        QPU: 4
+        DNA: 5
+        ALL: 100
+
+    # Tensor element datatype, used by ops.tensor.Tensor and every Asset's
+    # structure() definition
+    DataType:
+        INVALID: 0
+        FLOAT16: 1
+        FLOAT32: 2
+        FLOAT64: 3
+        INT8: 4
+        INT16: 5
+        INT32: 6
+        INT64: 7
+        UINT8: 8
+        UINT16: 9
+        UINT32: 10
+        UINT64: 11
+        BOOL: 12
+        LABEL: 13 #NOTE - fixed-width unicode string, not numeric
+
+    # URI provides support for scheme & host based paths and in Python
+    # wraps the URL parser library
+    URI:
+        scheme:
+            type: string
+        host:
+            type: string
+        user:
+            type: string
+        port:
+            type: integer
+        path:
+            type: string #NOTE for file schemes - this is a Python Path type
+        query:
+            type: string #NOTE in Python - this is a dict
+        fragment:
+            type: string
+
+    # A standardised string to represent a plugin/factory instantiable type
+    # Takes the format: <module>.<category>.<name>[-<version>]
+    # Types are registered in factories which allows for control over
+    # Python module importing and instantation
+    TypeName:
+        module:
+            type: string
+        category:
+            type: string
+        name:
+            type: string
+        version:
+            type: Version
+
+
+    # Type is a meta property type to allow classes to be referenced by
+    # TypeName and instantiated with a pre-registered factory class
+    # It connects to the factory to allow for instancing during storage
+    # retrival
+    Type:
+        type_name:
+            type: TypeName
+
+
+    # Standard semantic versioning
+    # In Python this inherits from packaging.version
+    Version:
+        properties:
+            major:
+                type: integer
+            minor:
+                type: integer
+            patch:
+                type: integer
+
+    # Dataset table aggregation method
+    Order:
+        ROW: 0
+        COLUMN: 1
+
+
+    # Criteria represents the comparison operator a Package uses when checking
+    # compatibility against another package's version
+    Criteria:
+        INVALID: 0
+        EXACT: 1
+        LATER: 2
+        EARLIER: 3
+        MINIMUM: 4
+        MAXIMUM: 5
+        APPROX: 6
+
+
+    # A simple package name that represents a version package required for functionality
+    # e.g. linkage or importing
+    Package:
+        name:
+            type: string
+        version:
+            type: Version
+        suffix:
+            type: string
+        criteria:
+            type: Criteria
+
+    # A property has a direction represents how a property flows in our Graph Database
+    # OUT - any conected reference is connected OUT from the entity
+    # IN - any conected reference is connected IN from the entity
+    # INOUT - it can flow both ways, default, usually a POD type
+    PropertyDirection:
+        INVALID: 0
+        IN: 1
+        OUT: 2
+        INOUT: 3
+
+
+    # Supported fundamental property types
+    PropertyType:
+        INVALID: 0
+        BOOLEAN: 1
+        INTEGER: 2
+        NUMBER: 3
+        STRING: 4
+        DATETIME: 5
+        OBJECT: 6
+        URI: 7
+        VERSION: 8
+        TYPE: 9
+        PACKAGE: 10
+        ENUM: 11
+        DICT: 12 #NOTE - a JSON-serialisable dictionary, not just POD
+
+
+    # Properties are reflectionable and serialisable object properties stored in a
+    # data member. A property can be a single value or an array (container type).
+    #
+    # Objects hold properties either as a member of the object,
+    # which means they are pulled from the storage system along with the entity
+    # or they are referenced - and pulled only on demand. A required property
+    # is always pulled on demand from the store - this selective storage access
+    # ensure we only get what is immediately necessary from the storage system
+    Property:
+        name:
+            type: string
+        required:
+            type: boolean
+        direction:
+            type: PropertyDirection
+        member:
+            type: boolean
+        hidden:
+            type: boolean #NOTE - excluded from generic listing/serialisation, e.g. internal bookkeeping fields
+        volatile:
+            type: boolean #NOTE - can be set even while the owning object is immutable
+        prop_type:
+            type: PropertyType
+
+
+    # Object has the property data instance (not shown), which holds the actual
+    # property instances
+    # In python, getattr & setattr are used to pass down access to these properties
+    Object:
+        obj_id:
+            type: string #NOTE - this is a UUID string by default
+        properties:
+            properties:
+                type: array
+                items: Property
+            name:
+                type: string
+                required: true
+
+
+track:
+
+    # Entity represents the base entity in the system that is stored in the
+    # storage system. Entity itself only contributes 3 properties on top of
+    # Object's 'name' - the rest of Entity's bookkeeping (store, timestamp,
+    # requires_create/update/sync/delete) is internal state, not a persisted
+    # Property, and is not shown here.
+    Entity:
+        inherits: system.Object
+        properties:
+            context:
+                type: string
+                required: true
+            active:
+                type: boolean
+                hidden: true
+            references:
+                type: array
+                items: string
+                hidden: true
+
+
+    # A lightweight stand-in for an entity whose category is known but whose
+    # full data has not been fetched from the store; never requires create,
+    # update or delete since it does not represent real local changes
+    Proxy:
+        inherits: Entity
+
+
+    # Environment is a collection of packages and meta info, allowing a named
+    # environment to be invoked rather than explicit packages
+    Environment:
+        inherits: Entity
+        properties:
+            packages:
+                type: array
+                items: system.Package
+            identifier:
+                type: string
+            timestamp:
+                type: system.Datetime
+
+
+    # A DCC or tooling session that produces inferences, allowing multiple
+    # inferences to be batched under a single reproducible context
+    Session:
+        inherits: Entity
+        properties:
+            inferences:
+                type: array
+                items: Inference
+                member: false
+                direction: OUT
+            env:
+                type: Environment
+                member: false
+                direction: OUT
+            uri:
+                type: system.URI
+                direction: OUT
+            identifier:
+                type: string
+            timestamp:
+                type: system.Datetime
+
+
+    # A shared, unique jurisdiction location, expected to be pre-populated
+    Jurisdiction:
+        inherits: Entity
+
+
+    # A person or legal entity, unique
+    Party:
+        inherits: Entity
+
+
+    # A label or category marker attached to any artifact, unique
+    Tag:
+        inherits: Entity
+
+
+    # A single named right that a License can grant, exclude, or require
+    Right:
+        inherits: Entity
+
+
+    # Abstract predicate entity used to gate which artifacts a Solution accepts;
+    # concrete filters are registered classes implementing __call__(entities)
+    Filter:
+        inherits: Entity
+        abstract: true
+
+
+    # A solution represents an ML solution to a production problem
+    # It is the source entity that a DCC would call to for inference
+    # to allow for weights and model indirection so a plugin can
+    # always refer the best ranking model
+    Solution:
+        inherits: Entity
+        properties:
+            filters:
+                type: array
+                items: Filter
+                member: false
+                direction: IN
+            location:
+                type: Jurisdiction
+                member: false
+                direction: IN
+            origin:
+                type: Party
+                member: false
+                direction: IN
+            uri:
+                type: system.URI
+            description:
+                type: string
+            input_names:
+                type: array
+                items: string
+            input_types:
+                type: array
+                items: Type
+                default: [Asset]
+            output_names:
+                type: array
+                items: string
+            output_types:
+                type: array
+                items: Type
+                default: [Asset]
+            last_audit:
+                type: system.Datetime
+                direction: OUT
+
+
+    # A solution run - holds the connection between model, dataset and an
+    # optional starting checkpoint, and produces result weights & checkpoints
+    # it does not produce a model
+    Run:
+        inherits: Entity
+        properties:
+            model:
+                type: Model
+                member: false
+                direction: IN
+            dataset:
+                type: Dataset
+                member: false
+                direction: IN
+            validation:
+                type: Dataset
+                member: false
+                direction: IN
+            test:
+                type: Dataset
+                member: false
+                direction: IN
+            checkpoint:
+                type: Checkpoint
+                member: false
+                direction: IN
+            solution:
+                type: Solution
+                member: false
+                direction: IN
+            version:
+                type: system.Version
+            uri:
+                type: system.URI #NOTE - where run outputs are saved to
+            metric:
+                type: float
+            epochs:
+                type: integer #NOTE - how many epochs have run
+            result_checkpoints:
+                type: array
+                items: Checkpoint
+                member: true
+                direction: OUT
+            result_weights:
+                type: Weights
+                member: true
+                direction: OUT
+
+
+    # The lifecycle states a License can be in
+    LicenseStatus:
+        INVALID: 0
+        ACTIVE: 1
+        REVOKED: 2
+
+
+    # A license represents rights for an artifact in the system
+    # There can be multiple licenses, which should only be referenced
+    # rather than members of an artifact.
+    # Grants/excludes/requires reference shared Right entities rather than
+    # holding arbitrary strings, so rights can be checked as sets.
+    # Licenses can be explicit (only what is granted is permitted) or
+    # permissive (only what is excluded is denied).
+    License:
+        inherits: Entity
+        properties:
+            grants:
+                type: array
+                items: Right
+                member: false
+                direction: IN
+            excludes:
+                type: array
+                items: Right
+                member: false
+                direction: IN
+            requires:
+                type: array
+                items: Right
+                member: false
+                direction: IN
+            version:
+                type: system.Version
+            date:
+                type: system.Datetime
+            start:
+                type: system.Datetime
+            finish:
+                type: system.Datetime
+            revoked:
+                type: system.Datetime
+            uri:
+                type: system.URI
+            status:
+                type: LicenseStatus
+            notes:
+                type: array
+                items: string
+            explicit:
+                type: boolean
+            parties:
+                type: array
+                items: Party
+                member: false
+                direction: IN
+            jurisdictions:
+                type: array
+                items: Jurisdiction
+                member: false
+                direction: IN
+
+
+    # An inference stores the relationship between an inputs and outputs
+    # and which combination of model and weights was used.
+    # An inference has an optional normalised metric to give a sense of the quality of
+    # the inference, this is usually inherited from the model, but can be
+    # overridden by the inference itself
+    Inference:
+        inherits: Entity
+        properties:
+            model:
+                type: Model
+                member: false
+                direction: IN
+            inputs:
+                type: array
+                items: Dataset
+                member: false
+                direction: IN
+            weights:
+                type: Weights
+                member: false
+                direction: IN
+            solution:
+                type: Solution
+                member: false
+                direction: IN
+            metric:
+                type: float
+                direction: OUT
+            outputs:
+                type: array
+                items: Dataset
+                member: true
+                direction: OUT
+
+
+    # An artifact represents an on disk concrete URI item which has licenses.
+    # This is the base class for all our key trackable items
+    # Each holds a version, tags, dependencies (packages needed for this
+    # artifact to be valid) and an owning solution.
+    # Artifacts also have ancestors - what it was derived from, and variants - things
+    # that are essentially the same but converted - e.g. TorchScript -> ONNX, and share
+    # the same provenance
+    Artifact:
+        abstract: true
+        inherits: Entity
+        properties:
+            licenses:
+                type: array
+                items: License
+                member: false
+                direction: IN
+            tags:
+                type: array
+                items: Tag
+                member: false
+                direction: IN
+            ancestors:
+                type: array
+                items: Artifact
+                member: false
+                direction: IN
+            origin:
+                type: Party
+                member: false
+                direction: IN
+            location:
+                type: Jurisdiction
+                member: false
+                direction: IN
+            solution:
+                type: Solution
+                member: false
+                direction: IN
+            version:
+                type: system.Version
+                required: true
+                direction: IN
+            dependencies:
+                type: array
+                items: system.Package
+                direction: IN
+            author:
+                type: string
+                direction: OUT
+            uri:
+                type: system.URI
+                required: true
+                direction: OUT
+            variants:
+                type: array
+                items: Artifact
+                member: true
+                direction: OUT
+
+
+    # A generic artifact not managed by RMTC, e.g. a Nuke CAT file or a
+    # potential sidecar JSON file
+    Resource:
+        inherits: Artifact
+
+
+    # A model represents a trainable or inferrable model
+    # The type referenced is the asset type class, there is an additional
+    # system (not shown) to constrain the Type to assets.
+    # Models hold additional skip connects to their dataset
+    Model:
+        inherits: Artifact
+        properties:
+            dataset:
+                type: Dataset
+                member: false
+                direction: IN
+            metric:
+                type: float
+                required: true
+                direction: OUT
+            input_names:
+                type: array
+                items: string
+                direction: IN
+            input_types:
+                type: array
+                items: Type
+                default: [Asset]
+                direction: IN
+            output_names:
+                type: array
+                items: string
+                direction: IN
+            output_types:
+                type: array
+                items: Type
+                default: [Asset]
+                direction: IN
+
+
+    # Checkpoints represent weights & gradient information to allow a run to
+    # pick up exactly where it left off; similarly to Weights, it can
+    # reference the model it belongs to
+    Checkpoint:
+        inherits: Artifact
+        properties:
+            model:
+                type: Model
+                member: false
+                direction: IN
+
+
+    # Weights hold the trained state as an output of the run and are loaded
+    # into the model that is referenced
+    Weights:
+        inherits: Artifact
+        properties:
+            model:
+                type: Model
+                member: false
+                direction: IN
+            metric:
+                type: float
+                required: true
+                direction: OUT
+
+
+    # A group of entities, useful for arbitrary ad-hoc collections
+    Group:
+        inherits: Entity
+        properties:
+            items:
+                type: array
+                items: Entity
+                member: false
+                direction: IN
+
+
+    # This is a multipurpose dataset class to represent a set of items for
+    # training or inference. It can be either:
+    # * A list of assets which it owns entirely
+    # * A list of references to other datasets which it pulls its assets from
+    # * A URI which defers assets to a subclass, in which case the asset list is empty
+    # These are separate because the source & derivatives vary depending on
+    # which it uses - a flat list of polymorphic items would result in
+    # awkward provenance tracing.
+    Dataset:
+        inherits: Artifact
+        properties:
+            datasets:
+                type: array
+                items: Dataset
+                member: false
+                direction: IN
+            assets:
+                type: array
+                items: Asset
+                member: false
+                direction: OUT
+
+
+    # A provenance watermark embedded into an asset. Holds arbitrary POD
+    # entries (str/int/float) added dynamically via add_entry(), tracked by
+    # name in entry_names so they can be reflected over.
+    Watermark:
+        inherits: Entity
+        properties:
+            entry_names:
+                type: array
+                items: string
+
+
+    # Asset represents an actual item in the asset management system and is
+    # a member of a Dataset. Models convert assets to tensors via a process
+    # system at the artifact layer.
+    # Assets are volatile during training and deleted shortly after creation;
+    # during inference, assets are persistent and owned by the inference.
+    # Note: though Asset derives from Artifact for the purpose of managing
+    # within the entity structure, it cannot be pushed or pulled from the
+    # database on its own.
+    Asset:
+        inherits: Artifact
+        properties:
+            watermarks:
+                type: array
+                items: Watermark
+                direction: OUT
+
+ops:
+    # rmtc.ops.artifacts - I/O-capable mirrors of the track artifact
+    # hierarchy. Facility-specific backends (torch/onnx/etc, under
+    # `core/`) subclass these, NOT track.entities directly, so a
+    # model/weights/checkpoint/asset carries both its provenance
+    # properties (inherited) and its runtime/IO properties (added
+    # here: `io`, `devices`, `runner`, etc).
+
+    # Class to run a model - responsible for taking the standard datatypes
+    # and converting into the model format and back
+    Runner:
+        inherits: track.Entity
+        abstract: true
+        properties: none
+
+    # Abstract interface for artifacts that can be read, written, and reset -
+    # NOT an Entity itself, this is mixed into the concrete Weights/
+    # Checkpoint/Asset/Model/Dataset classes below alongside their track
+    # entity base class
+    Artifact:
+        abstract: true
+        properties: none
+
+    # Model weights artifact with read/write capabilities. Weights hold no
+    # optimizer information (that's Checkpoint) - converting weights to a
+    # checkpoint is legal, the reverse is not (optimizer data is lost)
+    Weights:
+        inherits: [track.Weights, Artifact]
+        abstract: true
+        properties:
+            io:
+                type: IO
+                direction: IN
+            devices:
+                type: array
+                items: system.Device
+
+    # Model checkpoint artifact with read/write capabilities - a superset
+    # of Weights with optimizer state included
+    Checkpoint:
+        inherits: [track.Checkpoint, Artifact]
+        abstract: true
+        properties:
+            io:
+                type: IO
+                direction: IN
+            devices:
+                type: array
+                items: system.Device
+
+    # Plain-old-data interface (get/set/value) mixed into simple scalar/
+    # array asset types (Value, Values, Label, Labels)
+    Pod:
+        abstract: true
+        properties: none
+
+    # Abstract asset artifact with tensor data and I/O capabilities -
+    # represents a model-inferable tensor in a standard VFX-facing format.
+    # Assets don't own their IO (it's provided by the containing dataset),
+    # hence member: false on `io` here despite being a required accessor.
+    Asset:
+        inherits: [track.Asset, Artifact]
+        abstract: true
+        properties:
+            io:
+                type: IO
+                direction: IN
+                member: false
+            devices:
+                type: array
+                items: system.Device
+
+    # Model labels used as training-configuration hints (which optimiser
+    # family, loss shape, etc. suit the model)
+    ModelType:
+        INVALID: 0
+        REGRESSION: 1
+        CLASSIFICATION: 2
+        TRANSFORMATION: 3
+        CLUSTERING: 4
+        REDUCTION: 5
+        ASSOCIATION: 6
+        DETECTION: 7
+
+    # Abstract model artifact with conversion and I/O capabilities -
+    # represents a trainable/inferrable model with an additional
+    # input/output signature used to validate predictions
+    Model:
+        inherits: [track.Model, Artifact]
+        abstract: true
+        properties:
+            input_optionals:
+                type: array
+                items: boolean
+                direction: IN
+            io:
+                type: IO
+                direction: IN
+            devices:
+                type: array
+                items: system.Device
+            model_type:
+                type: ModelType
+                default: REGRESSION
+                direction: IN
+            trainable:
+                type: boolean
+            runner:
+                type: Runner
+                direction: IN
+            input_packager:
+                type: ops.Packager
+                direction: IN
+            output_packager:
+                type: ops.Packager
+                direction: IN
+
+    # Dataset is a table where rows are always a list of assets - even a
+    # dataset of datasets. Columns are homogeneous in type (not enforced
+    # if a column has no declared type)
+    Dataset:
+        inherits: [track.Dataset, Artifact] #NOTE - also mixes in system.containers.Table
+        properties:
+            io:
+                type: IO
+                direction: IN
+            columns:
+                type: array
+                items: string
+                direction: OUT
+            types:
+                type: array
+                items: system.Type
+                default: Asset
+                direction: OUT
+
+    # Default IO for an Aggregation - pushes read/write down to member
+    # datasets rather than doing any I/O itself
+    AggregationIO:
+        inherits: IO
+        properties: none
+
+    # Aggregation of datasets, striped either by row (concatenate rows) or
+    # by column (zip datasets side by side)
+    Aggregation:
+        inherits: [Dataset] #NOTE - also mixes in system.containers.Table, Artifact
+        io:
+            type: AggregationIO
+        properties:
+            order:
+                type: system.Order #NOTE - ROW=0, COLUMN=1, see system/containers.py
+
+    # A homogenous asset array of assets - NOT a Dataset (e.g. a multi
+    # layer EXR or an image sequence)
+    Collection:
+        inherits: Asset
+        properties:
+            asset_type:
+                type: system.Type
+
+    # rmtc.ops.process - bidirectional tensor transforms (Process) and
+    # model-format marshalling (Packager). Process is formalised
+    # (structure doesn't change); Packager is unconstrained (matches
+    # whatever the target model framework expects).
+
+    # Package an RMTC data block into a model-specific format. Encapsulates
+    # marshalling separately from Process's tensor-shape-preserving
+    # transforms, so re-use doesn't require per-model wrapper classes.
+    Packager:
+        inherits: track.Entity
+        abstract: true
+        properties: none
+
+    # Chains multiple packagers together in sequence (forward order for
+    # run, reverse for run_inverse)
+    PackagerStack:
+        inherits: Packager
+        properties:
+            stack:
+                type: array
+                items: Packager
+                direction: IN
+
+    # Packager that runs index-aligned processes on the input before
+    # delegating to an inner packager
+    ProcessPackager:
+        inherits: Packager
+        properties:
+            processors:
+                type: array
+                items: Process
+                direction: IN
+            packager:
+                type: Packager
+                direction: IN
+
+    # Abstract base for tensor processing operations - smaller
+    # bidirectional operations that act on tuples of tensors, composable
+    # via ProcessStack or inverted via ProcessInverter
+    Process:
+        inherits: track.Entity
+        abstract: true
+        properties: none
+
+    # Wraps a Process and swaps run/run_inverse - used to run a process
+    # backwards without redefining it
+    ProcessInverter:
+        inherits: Process
+        properties:
+            process:
+                type: Process
+                direction: IN
+
+    # No-op process - passes tensors through unchanged in both directions
+    ProcessBypass:
+        inherits: Process
+
+    # Runs an inner process against a single nominated element of a tensor
+    # tuple, leaving the rest untouched
+    ProcessTensor:
+        inherits: Process
+        properties:
+            tensor:
+                type: integer
+                direction: IN
+            process:
+                type: Process
+                direction: IN
+
+    # Chains multiple processes together in sequence (forward order for
+    # run, reverse order with run_inverse for the inverse)
+    ProcessStack:
+        inherits: Process
+        properties:
+            stack:
+                type: array
+                items: Process
+                direction: IN
+
+    # rmtc.ops.train - training-specific derivations of track entities
+
+    # Training solution - no additional behaviour beyond track.entities.Solution
+    Solution:
+        inherits: track.Solution
+
+    # Training run - adds live/volatile execution state on top of the
+    # provenance-only track.entities.Run
+    Run:
+        inherits: [track.Run, Task] #NOTE - also implements ops.scheduling.Task
+        properties:
+            duration:
+                type: float
+                volatile: true
+            started:
+                type: system.Datetime
+                volatile: true
+            trainer:
+                type: Trainer
+                direction: OUT
+            status:
+                type: ops.Status
+                default: READY
+                volatile: true
+
+    # Abstract base class for model training implementations. Hyperparameters
+    # are exposed generically via the object's own reflected properties
+    # (see `hyperparameters` property, which just walks self.properties).
+    Trainer:
+        inherits: track.Entity
+        abstract: true
+        properties:
+            epochs:
+                type: integer
+                default: 1
+            batch_size:
+                type: integer
+                default: 1
+            checkpoint_interval:
+                type: integer
+            device:
+                type: system.Device
+
+    # rmtc.ops.scheduling - shared execution-lifecycle machinery for both
+    # training and inference jobs
+
+    # Execution states for a Task (training Run or inference Inference)
+    Status:
+        INVALID: 0
+        READY: 1
+        RUNNING: 2
+        PAUSED: 3
+        STOPPED: 4
+        FINISHED: 5
+        FAILED: 6
+
+    # Unifies training & inference tasks under one lifecycle interface
+    Task:
+        abstract: true
+        properties: none
+
+    # Inference wrapper adding live/volatile execution state on top of
+    # the provenance-only track.entities.Inference
+    Inference:
+        inherits: [track.Inference, Task] #NOTE - also implements ops.scheduling.Task
+        properties:
+            inferer:
+                type: Inferer
+                direction: OUT
+            duration:
+                type: float
+                volatile: true
+            started:
+                type: system.Datetime
+                volatile: true
+            status:
+                type: ops.Status
+                default: READY
+                volatile: true
+
+    # Abstract base class for model inference operations. Lazily creates
+    # the model instance (and loads weights, if any) on first run, then
+    # caches it until reset()
+    Inferer:
+        inherits: track.Entity
+        abstract: true
+        properties:
+            device:
+                type: system.Device
+                default: GPU
+
+    # rmtc.ops.assets - concrete VFX-facing asset types. Each defines a
+    # fixed `structure()` (tensor shape/dtype tuple) rather than adding
+    # persisted properties, except where noted.
+
+    # Simple scalar floating point value, exposed via the Pod get/set
+    # interface
+    Value:
+        inherits: [Asset, Pod]
+        properties: none #NOTE - fixed structure: single (1,) FLOAT32 tensor
+
+    # Flat list of floating point values
+    Values:
+        inherits: [Asset, Pod]
+        properties: none #NOTE - fixed structure: single (N,) FLOAT32 tensor
+
+    # Single label string, fixed-width (Tensor.LABEL_SIZE)
+    Label:
+        inherits: [Asset, Pod]
+        properties: none #NOTE - fixed structure: single (1,) LABEL tensor
+
+    # List of fixed-width label strings
+    Labels:
+        inherits: [Asset, Pod]
+        properties: none #NOTE - fixed structure: single (N,) LABEL tensor
+
+    # RGBA image tensor, shape (W,H,4). WHC layout chosen for memory
+    # mappability outside a Python context.
+    Image:
+        inherits: Asset
+        properties:
+            colorspace:
+                type: string #NOTE - applies to R,G,B channels only, not alpha
+            data_type:
+                type: system.DataType
+                default: FLOAT32
+            layer_name:
+                type: string
+
+    # 3D geometry - vertex tensor (8,N): [x,y,z,nx,ny,nz,u,v] plus a face
+    # index tensor (3,M) for triangles
+    Mesh:
+        inherits: Asset
+        properties: none
+
+    # Dynamic composite asset - members are added at runtime via
+    # add_member(name, asset_type), not via the standard add_property
+    # constructor pattern, so it has no fixed schema
+    Structure:
+        inherits: Asset
+        properties: dynamic #NOTE - see add_member(); structure() raises NotImplementedError
+
+    # Camera extrinsics (4x4 homogenous transform) and intrinsics
+    # (pinhole 3x3 + 2-element sensor size in mm) - fixed 3-tensor structure
+    Camera:
+        inherits: Asset
+        properties: none
+
+    # N-joint skeleton: rest-pose transforms (N,4,4), joint names (N,)
+    # LABEL, parent index hierarchy (N,) INT32
+    Skeleton:
+        inherits: Asset
+        properties: none
+
+    # N-joint pose - delta transforms (N,4,4) relative to a referenced
+    # Skeleton
+    Pose:
+        inherits: Asset
+        properties:
+            skeleton:
+                type: Skeleton
+                member: false
+                direction: IN
+
+    # A bog-standard named locator - single (4,4) homogenous transform
+    Transform:
+        inherits: Asset
+        properties: none
+
+    # rmtc.ops.io - the reader/writer contract every facility-specific IO
+    # implements
+
+    # Abstract base for progressive (multi-call) reading/writing of
+    # artifacts - keep calling read/write until it returns False, or call
+    # flush to write the whole artifact at once
+    BaseIO:
+        abstract: true
+        properties: none
+
+    # Entity-backed IO base with sensible defaults for init/reset/
+    # create_name/is_uri_supported/is_artifact_supported - concrete
+    # readers/writers only need to implement get_scheme/get_artifact_type/
+    # read/write
+    IO:
+        inherits: [track.Entity, BaseIO]
+        properties: none

@@ -1,0 +1,585 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Contributors to the RMTC Project
+
+core:
+
+    # PyTorch checkpoint artifact - model + optimizer state
+    TorchCheckpoint:
+        inherits: ops.Checkpoint
+        properties:
+            optimizer:
+                type: string #NOTE - optimizer class name/identifier
+
+    # PyTorch model weights artifact - state_dict only, no optimizer state
+    TorchWeights:
+        inherits: ops.Weights
+        properties: none
+        methods: [torch_weights, reset, is_valid, get_device, move]
+
+    # PyTorch model artifact wrapping an nn.Module instance
+    TorchModel:
+        inherits: ops.Model
+        properties: none
+
+    # Deprecated alias of TorchModel
+    Torch:
+        inherits: TorchModel
+        properties: none
+
+
+    # ONNX model artifact wrapping an onnxruntime InferenceSession
+    ONNXModel:
+        inherits: ops.Model
+        properties: none
+
+    # Pairing of assets with JSON rows for specific labelling/annotation
+    MappedAssets:
+        inherits: ops.Dataset
+        properties: none
+
+    # Reader/writer for whole PyTorch package format models (.pt, includes
+    # class definition + weights, via torch.package)
+    TorchPackage:
+        inherits: ops.IO
+        properties:
+            model_name:
+                type: string
+                default: ""
+            package_name:
+                type: string
+                default: ""
+            interns:
+                type: array
+                items: system.Package
+            externs:
+                type: array
+                items: system.Package
+
+    # Reader/writer for JIT-serialized (TorchScript) model weights (.pt)
+    TorchScript:
+        inherits: ops.IO
+        properties:
+            trace:
+                type: boolean #NOTE - trace vs script JIT compilation mode
+
+    # Reader/writer for PyTorch training checkpoints (.pt)
+    TorchCheckpointFile:
+        inherits: ops.IO
+        properties: none
+
+    # Reader/writer for PyTorch model weights state_dicts (.pt)
+    TorchWeightsFile:
+        inherits: ops.IO
+        properties: none
+
+    # Reader/writer that creates an onnxruntime InferenceSession from an
+    # ONNX file
+    ONNXSessionFile:
+        inherits: ops.IO
+        properties:
+            device:
+                type: system.Device
+                default: GPU
+
+    # Reader/writer for raw ONNX model files (no session creation)
+    ONNXModelFile:
+        inherits: ops.IO
+        properties: none
+
+    # Reader/writer for PyTorch model weights in .safetensors format
+    SafetensorsTorchWeightsFile:
+        inherits: ops.IO
+        properties: none
+
+    # Reader/writer for EXR image files with HDR/multi-subimage support
+    EXR:
+        inherits: ops.IO
+        properties:
+            subimage_names:
+                type: array
+                items: string
+                direction: OUT
+
+    # Reader/writer for JPG image files
+    JPG:
+        inherits: ops.IO
+        properties: none
+
+    # Reads/writes an animated camera as rows in a Dataset, backed by a USD stage
+    USDCameraSequence:
+        inherits: ops.IO
+        properties:
+            fps:
+                type: float
+                default: 24.0
+            meters_per_unit:
+                type: float
+                default: 1.0
+            file_type:
+                type: string
+                default: "a"
+            asset_type:
+                type: system.Type
+                default: ops.Camera
+
+    # Reads/writes a single (non-animated) camera to/from USD
+    USDCamera:
+        inherits: ops.IO
+        properties: none
+
+    # Reads/writes raw numpy tensors as JSON
+    TensorJSONFile:
+        inherits: ops.IO
+        properties: none
+
+    # Writes each individual Values asset into its own JSON file
+    ValuesJSONFile:
+        inherits: ops.IO
+        properties:
+            index:
+                type: integer
+                default: 0
+
+    # Reads a list of labelled assets from JSON, delegating individual
+    # asset I/O to a nested `asset_io`
+    AssetValuesJSONFile:
+        inherits: ops.IO
+        properties:
+            asset_io:
+                type: ops.IO
+                direction: IN
+            asset_type:
+                type: system.Type
+                default: Asset
+
+    # JSON file holding a map of URI -> URI, backing a MappedAssets dataset
+    MappedAssetsJSONFile:
+        inherits: ops.IO
+        properties:
+            io_instances:
+                type: array
+                items: ops.IO
+            asset_types:
+                type: array
+                items: system.Type
+
+    # A collection of like-typed assets stored one-per-file in a folder,
+    # delegating per-asset I/O to a nested `asset_io`
+    FolderIO:
+        inherits: ops.IO
+        properties:
+            asset_type:
+                type: system.Type
+                default: Asset
+            asset_io:
+                type: ops.IO
+                member: true
+                direction: IN
+
+    # Dataset for paired files organized in an alternating folder
+    # structure (e.g. input/output image pairs)
+    CorrelatedFolderIO:
+        inherits: ops.IO
+        properties:
+            asset_io:
+                type: ops.IO
+                direction: IN
+            asset_type:
+                type: system.Type
+                default: Asset
+
+    # Packages data into a single PyTorch tensor
+    SingleTorchTensor:
+        inherits: ops.Packager
+        properties:
+            contiguous:
+                type: boolean
+                default: true
+            data_type:
+                type: system.DataType
+
+    # Packages batched data into stacked PyTorch tensors
+    BatchedTorchTensor:
+        inherits: ops.Packager
+        properties:
+            contiguous:
+                type: boolean
+                default: true
+            data_type:
+                type: system.DataType
+
+    # Packages data into ONNX-runtime-compatible tensors
+    ONNXTensor:
+        inherits: ops.Packager
+        properties: none
+
+    TrimAlpha:
+        inherits: ops.Process
+        properties: none
+
+    Shuffle:
+        inherits: ops.Process
+        properties:
+            order:
+                type: array
+                items: integer
+    Flip:
+        inherits: ops.Process
+        properties: none #NOTE - RGB <-> BGR channel reorder
+
+    SwapWidthHeight:
+        inherits: ops.Process
+        properties: none
+
+    ExtractChannel:
+        inherits: ops.Process
+        properties:
+            channel:
+                type: integer
+                default: 0
+
+    AddChannel:
+        inherits: ops.Process
+        properties:
+            channel:
+                type: integer
+                default: 0
+
+    ExpandChannel:
+        inherits: ops.Process
+        properties: none #NOTE - single channel -> RGBA by repetition
+
+    MoveChannelsFirst:
+        inherits: ops.Process
+        properties: none #NOTE - HWC -> CHW
+
+    MoveChannelsLast:
+        inherits: ops.Process
+        properties: none #NOTE - CHW -> HWC
+
+    CHWImage:
+        inherits: ops.Process
+        properties: none #NOTE - combined WHC -> CHW
+
+    WHCImage:
+        inherits: ops.Process
+        properties: none #NOTE - combined CWH -> WHC
+
+    StatsNormalize:
+        inherits: ops.Process
+        properties:
+            mean:
+                type: array
+                items: float
+                default: [0.5, 0.5, 0.5]
+            std:
+                type: array
+                items: float
+                default: [0.25, 0.25, 0.25]
+
+    LinearNormalize:
+        inherits: ops.Process
+        properties:
+            scale_range:
+                type: array
+                items: float
+                default: [0.0, 1.0]
+            data_min:
+                type: float #NOTE - only set if provided
+            data_max:
+                type: float #NOTE - only set if provided
+
+    LinearToSRGB:
+        inherits: ops.Process
+        properties: none
+
+    MakeMonochrome:
+        inherits: ops.Process
+        properties:
+            channel:
+                type: integer
+                default: 0
+
+    Rotate:
+        inherits: ops.Process
+        properties:
+            angle:
+                type: float #NOTE - only set if provided, else random
+            max_angle:
+                type: float
+                default: 360.0
+
+    Translate:
+        inherits: ops.Process
+        properties:
+            x:
+                type: float
+            y:
+                type: float
+            max_x:
+                type: float
+                default: 1.0
+            max_y:
+                type: float
+                default: 1.0
+
+    Pad:
+        inherits: ops.Process
+        properties:
+            width:
+                type: integer
+            height:
+                type: integer
+
+    Align:
+        inherits: ops.Process
+        properties:
+            width_boundary:
+                type: integer
+                default: 1
+            height_boundary:
+                type: integer
+                default: 1
+
+    Scale:
+        inherits: ops.Process
+        properties:
+            scale:
+                type: array
+                items: float #NOTE - only set if provided, else random within range
+            scale_min:
+                type: array
+                items: float
+                default: [0.5, 0.5]
+            scale_max:
+                type: array
+                items: float
+                default: [2.0, 2.0]
+
+    Flip:
+        inherits: ops.Process
+        properties:
+            horizontal:
+                type: boolean
+            vertical:
+                type: boolean
+            probability:
+                type: array
+                items: float
+                default: [0.5, 0.5]
+
+    Resize:
+        inherits: ops.Process
+        properties:
+            width:
+                type: integer
+            height:
+                type: integer
+
+    Crop:
+        inherits: ops.Process
+        properties:
+            width:
+                type: integer
+            height:
+                type: integer
+
+    TorchvisionFormat:
+        inherits: ops.Process
+        properties: none #NOTE - [CHW] float32 0/+1 RGB
+
+    PyTorchFormat:
+        inherits: ops.Process
+        properties: none #NOTE - [CHW] float32 -1/+1 RGB
+
+    KerasFormat:
+        inherits: ops.Process
+        properties: none #NOTE - [HWC] float32 -1/+1 RGB
+
+    OpenCVFormat:
+        inherits: ops.Process
+        properties: none #NOTE - [HWC] int8 0/255 BGR
+
+    OIIOFormat:
+        inherits: ops.Process
+        properties: none #NOTE - [HWC] float32 0/+1 RGBA
+
+    TensorflowFormat:
+        inherits: KerasFormat
+        properties: none
+
+    ONNXFormat:
+        inherits: TorchvisionFormat
+        properties: none
+
+    # Converts camera aperture/focal length between pixel and mm coordinates
+    ConvertAperture:
+        inherits: ops.Process
+        properties:
+            image_width:
+                type: integer
+            image_height:
+                type: integer
+            sensor_width:
+                type: integer
+            sensor_height:
+                type: integer
+
+    PackDict:
+        inherits: ops.Packager
+        properties:
+            elements:
+                type: dict
+            insert_position:
+                type: integer
+    ToDict:
+        inherits: ops.Packager
+        properties:
+            names:
+                type: array
+                items: string
+
+    Enclose:
+        inherits: ops.Packager
+        properties: none #NOTE - encloses elements with stride/span into an array structure
+
+    Collapse:
+        inherits: ops.Packager
+        properties: none #NOTE - inverse of Enclose
+
+    Pop:
+        inherits: ops.Packager
+        properties: none #NOTE - extracts nominated element tensors by index from a batch
+
+    Append:
+        inherits: Pop
+        properties: none #NOTE - inverse of Pop
+
+    Split:
+        inherits: ops.Packager
+        properties: none #NOTE - splits a tensor along an axis using element indices
+
+    Cat:
+        inherits: Split
+        properties: none #NOTE - inverse of Split
+
+    Batch:
+        inherits: ops.Packager
+        properties: none #NOTE - combines samples into a single padded batch tensor
+
+    Unbatch:
+        inherits: Batch
+        properties: none #NOTE - inverse of Batch
+
+    Batch:
+        inherits: ops.Process
+        properties: none #NOTE - combines individual tensors into a batch
+
+    ConvertDataType:
+        inherits: ops.Process
+        properties:
+            to_data_type:
+                type: system.DataType
+            from_data_type:
+                type: system.DataType
+                
+    Contiguous:
+        inherits: ops.Process
+        properties: none #NOTE - flattens for memory layout optimisation
+
+    Transpose:
+        inherits: ops.Process
+        properties:
+            axes:
+                type: array
+                items: integer
+
+    # PyTorch regression trainer with CUDA support and logging
+    TorchRegression:
+        inherits: ops.train.Trainer
+        properties:
+            lr:
+                type: float
+                default: 0.006
+            optimizer:
+                type: string
+                default: "adam"
+            criterion:
+                type: string
+                default: "bce"
+            accumulation_steps:
+                type: integer
+                default: 1
+            repetitions:
+                type: integer
+            pre_process:
+                type: array
+                items: ops.Process
+                direction: IN
+            random_seed:
+                type: integer #NOTE - randomised if not provided
+
+    LocalTrainScheduler:
+        inherits: core.scheduling.local.schedulers.LocalScheduler
+        properties: none
+    SimpleTrainAsync:
+        properties: none #NOTE - runs start() in another process
+
+    DatasetInferer:
+        inherits: ops.Inferer
+        properties: none #NOTE - simple dataset-to-dataset inference
+
+    BatchedInferer:
+        inherits: ops.Inferer
+        properties:
+            pre_process:
+                type: array
+                items: ops.Process
+                direction: IN
+            post_process:
+                type: array
+                items: ops.Process
+                direction: IN
+            batch_size:
+                type: integer
+                default: 1
+            flush_outputs:
+                type: boolean
+                default: true
+
+    ParametricInferer:
+        inherits: ops.Inferer
+        properties: none #NOTE - dataset passed as model parameters rather than input assets
+
+    RecurrentInferer:
+        inherits: ops.Inferer
+        properties: none #NOTE - feeds prior inference output back in as a secondary model input
+
+    LocalInferScheduler:
+        inherits: LocalScheduler
+        properties: none
+
+    SimpleInferAsync:
+        inherits: [SimpleAsyncMixin, LocalInferScheduler]
+        properties: none #NOTE - runs start() in another process
+
+    # TensorBoard experiment tracker for ML training visualisation/logging
+    TensorBoard:
+        inherits: ops.Tracker
+        properties: none
+
+    LocalScheduler:
+        inherits: ops.Scheduler
+        properties: none
+
+    SimpleAsyncMixin:
+        properties: none #NOTE - mixin, runs start() in another process; not independently instantiable
+
+    SimpleAsync:
+        inherits: [SimpleAsyncMixin, LocalScheduler]
+        properties: none
+
+    # C2PA watermarker - marks images with provenance manifests (stub)
+    C2PAImageWatermarker:
+        inherits: track.Watermarker
+        properties: none
